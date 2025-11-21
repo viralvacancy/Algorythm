@@ -1,0 +1,7 @@
+{
+  "name": "Algorythm",
+  "description": "A high-performance, state-of-the-art music visualizer featuring multiple physics-based rendering modes, microphone input, and playlist management.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
