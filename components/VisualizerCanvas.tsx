@@ -17,20 +17,26 @@ interface KaleidoscopeParticle {
   color: string;
 }
 
+interface AuroraBand {
+  points: number[];
+  hue: number;
+  sway: number;
+}
+
 const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const rotationRef = useRef<number>(0);
   
-  // History for Grid Mode
-  const gridHistoryRef = useRef<Uint8Array[]>([]);
   // Particles for Kaleidoscope Mode
   const kaleidoscopeParticlesRef = useRef<KaleidoscopeParticle[]>([]);
+  // Aurora ribbons for Grid mode replacement
+  const auroraBandsRef = useRef<AuroraBand[]>([]);
 
   // Cleanup state on mode change
   useEffect(() => {
-    gridHistoryRef.current = [];
     kaleidoscopeParticlesRef.current = [];
+    auroraBandsRef.current = [];
     // Reset rotation when switching modes to prevent jarring jumps
     rotationRef.current = 0;
   }, [mode]);
@@ -272,153 +278,112 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
   };
 
   const renderGrid = (ctx: CanvasRenderingContext2D, width: number, height: number, data: AudioData) => {
-    // 1. Update History
-    const slicesToKeep = 80; 
-    const pointsPerSlice = 60; 
-    
-    const slice = new Uint8Array(pointsPerSlice);
-    const binSize = Math.floor((data.frequencyData.length / 4) / pointsPerSlice); 
-    
-    for(let i=0; i<pointsPerSlice; i++) {
-        let sum = 0;
-        for(let j=0; j<binSize; j++) sum += data.frequencyData[i*binSize + j];
-        slice[i] = sum / binSize;
-    }
-    
-    gridHistoryRef.current.unshift(slice);
-    if (gridHistoryRef.current.length > slicesToKeep) {
-        gridHistoryRef.current.pop();
+    // Aurora ribbons flowing across the screen
+    if (auroraBandsRef.current.length === 0) {
+      auroraBandsRef.current = Array.from({ length: 4 }).map((_, i) => ({
+        points: Array.from({ length: 40 }).map(() => Math.random() * 0.4),
+        hue: 180 + i * 35,
+        sway: Math.random() * Math.PI * 2,
+      }));
     }
 
-    // 2. Setup Perspective
-    const cx = width / 2;
-    const horizonY = height * 0.25; 
-    
-    const bassKick = data.bass / 255;
-    
-    // Enhanced Responsiveness
-    // More aggressive shake only on hard hits
-    const shakeThreshold = 0.6;
-    const shakeIntensity = bassKick > shakeThreshold ? Math.pow((bassKick - shakeThreshold) * 2, 2) * 30 : 0;
-    const shakeX = (Math.random() - 0.5) * shakeIntensity;
-    const shakeY = (Math.random() - 0.5) * shakeIntensity;
-    
-    ctx.save();
-    ctx.translate(shakeX, shakeY);
+    const bass = data.bass / 255;
+    const mid = data.mid / 255;
+    const treble = data.treble / 255;
+    const energy = Math.max(bass, mid * 0.9, treble * 0.8);
 
-    // Background Sky
+    // Background
     const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
-    skyGrad.addColorStop(0, '#000010');
-    skyGrad.addColorStop(0.25, '#200030'); 
-    skyGrad.addColorStop(1, '#000'); 
+    skyGrad.addColorStop(0, '#050512');
+    skyGrad.addColorStop(0.4, '#0a0f2b');
+    skyGrad.addColorStop(1, '#050910');
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // Sun - Pulsing
-    const sunSize = height * 0.15 + bassKick * 80; // More expansion
-    const sunY = horizonY - height * 0.05; 
-    const sunGrad = ctx.createLinearGradient(cx, sunY - sunSize, cx, sunY + sunSize);
-    const sunHue = 280 + bassKick * 60; 
-    sunGrad.addColorStop(0, `hsl(60, 100%, 80%)`);
-    sunGrad.addColorStop(0.5, `hsl(${sunHue}, 100%, 60%)`);
-    sunGrad.addColorStop(1, `hsl(${sunHue}, 100%, 40%)`);
-    
-    ctx.shadowBlur = 40 + bassKick * 60;
-    ctx.shadowColor = `hsl(${sunHue}, 100%, 60%)`;
-    ctx.fillStyle = sunGrad;
+    // Misty glow reacting to bass hits
+    ctx.save();
+    ctx.globalAlpha = 0.12 + energy * 0.25;
+    ctx.filter = 'blur(60px)';
+    ctx.fillStyle = `hsl(${200 + bass * 60}, 80%, ${40 + mid * 20}%)`;
     ctx.beginPath();
-    ctx.arc(cx, sunY, sunSize, 0, Math.PI*2);
+    ctx.ellipse(width / 2, height * (0.55 - bass * 0.15), width * 0.9, height * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
-    // Horizon Line
-    ctx.shadowBlur = 20 + bassKick * 20;
-    ctx.shadowColor = '#00ffff';
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth = 2 + bassKick * 2;
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY);
-    ctx.lineTo(width, horizonY);
-    ctx.stroke();
-
-    // 3. Draw 3D Grid
-    const gridWidth = width * 12; 
-    const cameraAltitude = height * 0.9; 
-    
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 1.5;
-
-    // Longitudinal Lines
-    for(let xIndex = 0; xIndex < pointsPerSlice; xIndex++) {
-         ctx.beginPath();
-         let firstPoint = true;
-         
-         for(let zIndex = 0; zIndex < gridHistoryRef.current.length; zIndex++) {
-             const val = gridHistoryRef.current[zIndex][xIndex];
-             const zProgress = zIndex / slicesToKeep;
-             const z = 0.1 + Math.pow(zProgress, 1.1) * 4.0; 
-             const scale = 1 / z;
-             
-             const xNorm = (xIndex / pointsPerSlice) - 0.5;
-             const xScreen = cx + xNorm * gridWidth * scale;
-             
-             // Terrain Height Multiplier - drastically increases on beats
-             const terrainMult = 1.2 + bassKick * 2.5; 
-             const yNorm = (val / 255) * terrainMult; 
-
-             const yGround = horizonY + cameraAltitude * scale;
-             const yScreen = yGround - (yNorm * height * 0.5) * scale;
-
-             if (firstPoint) {
-                 ctx.moveTo(xScreen, yScreen);
-                 firstPoint = false;
-             } else {
-                 ctx.lineTo(xScreen, yScreen);
-             }
-         }
-         ctx.strokeStyle = `rgba(0, 240, 255, 0.3)`;
-         ctx.stroke();
+    // Twinkling stars
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    for (let i = 0; i < 40; i++) {
+      const x = (i * 97 + Date.now() * 0.02) % width;
+      const y = (i * 53) % Math.floor(height * 0.45);
+      const sparkle = 0.4 + Math.sin((Date.now() + i * 200) * 0.003) * 0.2;
+      ctx.fillStyle = `rgba(255,255,255,${sparkle})`;
+      ctx.fillRect(x, y, 2, 2);
     }
+    ctx.restore();
 
-    // Latitudinal Lines
-    for(let zIndex = 0; zIndex < gridHistoryRef.current.length; zIndex++) {
-        if (zIndex % 2 !== 0) continue; 
-        
-        const slice = gridHistoryRef.current[zIndex];
-        const zProgress = zIndex / slicesToKeep;
-        const z = 0.1 + Math.pow(zProgress, 1.1) * 4.0;
-        const scale = 1 / z;
-        
-        const alpha = Math.max(0, 1 - Math.pow(zProgress, 0.5));
+    auroraBandsRef.current.forEach((band, bandIndex) => {
+      const baseY = height * (0.35 + bandIndex * 0.12);
+      const maxPoints = 140;
+      const newPoint = 0.2 + energy * 0.8 + Math.sin(band.sway + rotationRef.current * 2 + bandIndex) * 0.15;
 
-        ctx.beginPath();
-        
-        for(let xIndex = 0; xIndex < pointsPerSlice; xIndex++) {
-             const val = slice[xIndex];
-             const xNorm = (xIndex / pointsPerSlice) - 0.5;
-             const xScreen = cx + xNorm * gridWidth * scale;
-             
-             const terrainMult = 1.2 + bassKick * 2.5;
-             const yNorm = (val / 255) * terrainMult; 
-             const yGround = horizonY + cameraAltitude * scale;
-             const yScreen = yGround - (yNorm * height * 0.5) * scale;
-             
-             if (xIndex === 0) ctx.moveTo(xScreen, yScreen);
-             else ctx.lineTo(xScreen, yScreen);
-        }
-        
-        if (zIndex === 0) {
-            ctx.strokeStyle = '#ff00aa';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#ff00aa';
-            ctx.lineWidth = 2;
+      band.points.push(newPoint);
+      if (band.points.length > maxPoints) band.points.shift();
+
+      band.sway += 0.01 + treble * 0.02;
+
+      const len = band.points.length;
+      if (len < 2) return;
+
+      const step = width / (len - 1);
+      const grad = ctx.createLinearGradient(0, 0, width, 0);
+      grad.addColorStop(0, `hsla(${band.hue}, 80%, 60%, ${0.4 + energy * 0.3})`);
+      grad.addColorStop(0.5, `hsla(${band.hue + 30}, 90%, 70%, ${0.8 + treble * 0.2})`);
+      grad.addColorStop(1, `hsla(${band.hue + 60}, 80%, 60%, ${0.4 + energy * 0.3})`);
+
+      ctx.save();
+      ctx.lineWidth = 2 + bandIndex * 0.5 + energy * 2;
+      ctx.shadowBlur = 30 + energy * 40;
+      ctx.shadowColor = `hsla(${band.hue + 20}, 90%, 60%, 0.9)`;
+      ctx.strokeStyle = grad;
+      ctx.globalCompositeOperation = 'screen';
+
+      ctx.beginPath();
+      let prevX = 0;
+      let prevY = baseY;
+      for (let i = 0; i < len; i++) {
+        const x = i * step;
+        const amplitude = band.points[i];
+        const y = baseY - Math.sin(i * 0.18 + rotationRef.current * 3) * 25 - amplitude * (height * 0.22 + bandIndex * 10);
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
         } else {
-            ctx.strokeStyle = `rgba(0, 240, 255, ${alpha})`;
-            ctx.shadowBlur = 0;
-            ctx.lineWidth = 1.5;
+          const cpX = prevX + step / 2;
+          const cpY = (prevY + y) / 2;
+          ctx.quadraticCurveTo(cpX, cpY, x, y);
         }
-        ctx.stroke();
+
+        prevX = x;
+        prevY = y;
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Bass ripples
+    const rippleCount = Math.min(3, Math.floor(bass * 5));
+    ctx.save();
+    ctx.translate(width / 2, height * 0.65);
+    for (let i = 0; i < rippleCount; i++) {
+      const radius = (i + 1) * (60 + bass * 140);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(0, 255, 255, ${0.25 - i * 0.05})`;
+      ctx.lineWidth = 1 + bass * 3;
+      ctx.stroke();
     }
-    
     ctx.restore();
   };
 
