@@ -6,6 +6,7 @@ export class AudioEngine {
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
   private sourceNode: MediaElementAudioSourceNode | MediaStreamAudioSourceNode | null = null;
+  private currentMediaElement: HTMLAudioElement | null = null;
   
   private dataArray: Uint8Array | null = null;
   private timeArray: Uint8Array | null = null;
@@ -34,6 +35,11 @@ export class AudioEngine {
     this.init();
     if (!this.audioContext || !this.analyser) return;
 
+    // Ensure microphone input isn't routed to the speakers to avoid feedback
+    if (this.gainNode) {
+      this.analyser.disconnect(this.gainNode);
+    }
+
     // Disconnect old source
     if (this.sourceNode) {
       this.sourceNode.disconnect();
@@ -58,20 +64,28 @@ export class AudioEngine {
     this.init();
     if (!this.audioContext || !this.analyser || !this.gainNode) return;
 
-    if (this.sourceNode) {
+    const isSameElement = this.currentMediaElement === audioElement;
+
+    // Avoid recreating the source for the same element (which throws InvalidStateError)
+    if (!isSameElement && this.sourceNode) {
       this.sourceNode.disconnect();
     }
 
-    // Create source from audio element
-    // Note: We need to ensure we don't create multiple sources for the same element in React strict mode
-    try {
+    if (!isSameElement) {
+      try {
         this.sourceNode = this.audioContext.createMediaElementSource(audioElement);
-        this.sourceNode.connect(this.analyser);
-        this.analyser.connect(this.gainNode);
-    } catch (e) {
-        // If source already exists for this element, we might need to handle it, 
-        // but typically in this app structure, we manage the engine singleton carefully.
+        this.currentMediaElement = audioElement;
+      } catch (e) {
         console.warn("MediaElementSource attachment warning:", e);
+      }
+    }
+
+    if (this.sourceNode) {
+      // Ensure clean connections for both new and reused sources
+      this.sourceNode.disconnect();
+      this.sourceNode.connect(this.analyser);
+      this.analyser.disconnect();
+      this.analyser.connect(this.gainNode);
     }
 
     if (this.audioContext.state === 'suspended') {
