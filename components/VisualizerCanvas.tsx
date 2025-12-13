@@ -522,8 +522,8 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
     // Suspended particles
     ctx.fillStyle = 'rgba(160, 210, 240, 0.08)';
     for (let i = 0; i < 140; i++) {
-      const px = (i * 83 + Math.sin(t + i) * 60) % width;
-      const py = ((i * 57 + Math.cos(t * 0.5 + i * 0.4) * 40) % height) * 0.8;
+      const px = ((i * 83 + Math.sin(t + i) * 60) % width + width) % width;
+      const py = (((i * 57 + Math.cos(t * 0.5 + i * 0.4) * 40) % height + height) % height) * 0.8;
       ctx.globalAlpha = 0.1 + Math.sin(t + i) * 0.08 + treble * 0.2;
       ctx.fillRect(px, py, 2, 2);
     }
