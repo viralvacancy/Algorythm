@@ -8,7 +8,9 @@ export const MODES = [
   { id: VisualizerMode.Circular, label: 'Solar Vortex' },
   { id: VisualizerMode.Waveform, label: 'Oscilloscope' },
   { id: VisualizerMode.Kaleidoscope, label: 'Prism' },
-  { id: VisualizerMode.Grid, label: 'Aurora Veil' },
+  { id: VisualizerMode.PulseTunnel, label: 'Pulse Tunnel' },
+  { id: VisualizerMode.Starfall, label: 'Starfall' },
+  { id: VisualizerMode.Lattice, label: 'Neon Lattice' },
 ];
 
 export const COLOR_PALETTES = {

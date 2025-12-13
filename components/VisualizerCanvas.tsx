@@ -17,26 +17,30 @@ interface KaleidoscopeParticle {
   color: string;
 }
 
-interface AuroraBand {
-  points: number[];
-  hue: number;
-  sway: number;
+interface StarParticle {
+  x: number;
+  y: number;
+  speed: number;
+  size: number;
+  twinkle: number;
 }
 
 const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const rotationRef = useRef<number>(0);
-  
+
   // Particles for Kaleidoscope Mode
   const kaleidoscopeParticlesRef = useRef<KaleidoscopeParticle[]>([]);
-  // Aurora ribbons for Grid mode replacement
-  const auroraBandsRef = useRef<AuroraBand[]>([]);
+  // Starfield particles for Starfall mode
+  const starfieldRef = useRef<StarParticle[]>([]);
+  const latticePhaseRef = useRef<number>(0);
 
   // Cleanup state on mode change
   useEffect(() => {
     kaleidoscopeParticlesRef.current = [];
-    auroraBandsRef.current = [];
+    starfieldRef.current = [];
+    latticePhaseRef.current = 0;
     // Reset rotation when switching modes to prevent jarring jumps
     rotationRef.current = 0;
   }, [mode]);
@@ -277,114 +281,206 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
     ctx.restore();
   };
 
-  const renderGrid = (ctx: CanvasRenderingContext2D, width: number, height: number, data: AudioData) => {
-    // Aurora ribbons flowing across the screen
-    if (auroraBandsRef.current.length === 0) {
-      auroraBandsRef.current = Array.from({ length: 4 }).map((_, i) => ({
-        points: Array.from({ length: 40 }).map(() => Math.random() * 0.4),
-        hue: 180 + i * 35,
-        sway: Math.random() * Math.PI * 2,
+  const renderPulseTunnel = (ctx: CanvasRenderingContext2D, width: number, height: number, data: AudioData) => {
+    ctx.clearRect(0, 0, width, height);
+
+    const cx = width / 2;
+    const cy = height / 2;
+    const minDim = Math.min(width, height);
+    const bass = data.bass / 255;
+    const mid = data.mid / 255;
+
+    rotationRef.current += 0.01 + mid * 0.02;
+    const ringCount = 12;
+
+    // Background vignette
+    const bg = ctx.createRadialGradient(cx, cy, minDim * 0.05, cx, cy, minDim * 0.7);
+    bg.addColorStop(0, '#04060a');
+    bg.addColorStop(1, '#010203');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+
+    // Concentric rings
+    for (let i = 0; i < ringCount; i++) {
+      const progress = i / ringCount;
+      const radius = (progress ** 1.2) * minDim * 0.6 * (1 + bass * 0.1);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${200 + progress * 120}, 80%, ${50 + bass * 30}%, ${0.5 - progress * 0.4})`;
+      ctx.lineWidth = 2 + Math.sin(rotationRef.current + i) * 1.5 + bass * 2;
+      ctx.setLineDash([8 + i * 1.5, 14 - i]);
+      ctx.lineDashOffset = rotationRef.current * 40 * (1 - progress * 0.5);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Radiating beams
+    const beams = 120;
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (let i = 0; i < beams; i++) {
+      const angle = (i / beams) * Math.PI * 2 + rotationRef.current * 0.5;
+      const val = data.frequencyData[Math.floor((i / beams) * data.frequencyData.length)] / 255;
+      const len = minDim * 0.25 + val * minDim * 0.35;
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(minDim * 0.05, 0);
+      ctx.lineTo(len, 0);
+      ctx.strokeStyle = `hsla(${180 + val * 80}, 100%, ${60 + val * 20}%, ${0.2 + val * 0.6})`;
+      ctx.lineWidth = 1.5 + val * 3;
+      ctx.stroke();
+      ctx.rotate(-angle);
+    }
+    ctx.restore();
+
+    // Central glow
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, minDim * 0.12 + bass * minDim * 0.05);
+    core.addColorStop(0, `rgba(255,255,255,0.9)`);
+    core.addColorStop(1, `rgba(0, 220, 255, 0)`);
+    ctx.fillStyle = core;
+    ctx.fillRect(0, 0, width, height);
+  };
+
+  const renderStarfall = (ctx: CanvasRenderingContext2D, width: number, height: number, data: AudioData) => {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(0, 0, width, height);
+
+    const bass = data.bass / 255;
+    const treble = data.treble / 255;
+
+    if (starfieldRef.current.length === 0) {
+      const count = 160;
+      starfieldRef.current = Array.from({ length: count }).map(() => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        speed: 1 + Math.random() * 2,
+        size: 1 + Math.random() * 2,
+        twinkle: Math.random() * Math.PI * 2,
       }));
     }
+
+    // Meteor streaks on treble spikes
+    const streaks = Math.min(4, Math.floor((treble * 5)));
+    for (let i = 0; i < streaks; i++) {
+      const x = (Date.now() * 0.08 + i * 120) % width;
+      const y = ((Date.now() * 0.05 + i * 90) % height) * 0.6;
+      ctx.strokeStyle = `hsla(${190 + treble * 100}, 100%, 70%, 0.7)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 80, y + 60);
+      ctx.stroke();
+    }
+
+    starfieldRef.current.forEach((star) => {
+      star.y += star.speed * (1 + bass * 1.5);
+      star.x += Math.sin(star.y * 0.002 + rotationRef.current) * 0.5;
+      if (star.y > height) {
+        star.y = -10;
+        star.x = Math.random() * width;
+      }
+      star.twinkle += 0.05 + treble * 0.1;
+      const twinkleAlpha = 0.4 + Math.sin(star.twinkle) * 0.3 + treble * 0.3;
+
+      ctx.fillStyle = `rgba(180, 220, 255, ${twinkleAlpha})`;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#8ad7ff';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size + bass * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Connect nearby stars
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < starfieldRef.current.length; i++) {
+      const a = starfieldRef.current[i];
+      for (let j = i + 1; j < starfieldRef.current.length; j++) {
+        const b = starfieldRef.current[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 90) {
+          const strength = 1 - dist / 90;
+          ctx.strokeStyle = `rgba(120, 200, 255, ${strength * (0.2 + treble * 0.6)})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+  };
+
+  const renderLattice = (ctx: CanvasRenderingContext2D, width: number, height: number, data: AudioData) => {
+    ctx.clearRect(0, 0, width, height);
 
     const bass = data.bass / 255;
     const mid = data.mid / 255;
     const treble = data.treble / 255;
-    const energy = Math.max(bass, mid * 0.9, treble * 0.8);
+    const spacing = 50;
+    const cols = Math.ceil(width / spacing) + 2;
+    const rows = Math.ceil(height / spacing) + 2;
 
-    // Background
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
-    skyGrad.addColorStop(0, '#050512');
-    skyGrad.addColorStop(0.4, '#0a0f2b');
-    skyGrad.addColorStop(1, '#050910');
-    ctx.fillStyle = skyGrad;
+    latticePhaseRef.current += 0.02 + treble * 0.05;
+    const phase = latticePhaseRef.current;
+
+    // Background grid glow
+    ctx.fillStyle = '#05060b';
     ctx.fillRect(0, 0, width, height);
 
-    // Misty glow reacting to bass hits
-    ctx.save();
-    ctx.globalAlpha = 0.12 + energy * 0.25;
-    ctx.filter = 'blur(60px)';
-    ctx.fillStyle = `hsl(${200 + bass * 60}, 80%, ${40 + mid * 20}%)`;
-    ctx.beginPath();
-    ctx.ellipse(width / 2, height * (0.55 - bass * 0.15), width * 0.9, height * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    for (let y = -1; y < rows; y++) {
+      for (let x = -1; x < cols; x++) {
+        const px = x * spacing + ((y % 2) * spacing) / 2;
+        const py = y * spacing;
 
-    // Twinkling stars
-    ctx.save();
-    ctx.globalAlpha = 0.6;
-    for (let i = 0; i < 40; i++) {
-      const x = (i * 97 + Date.now() * 0.02) % width;
-      const y = (i * 53) % Math.floor(height * 0.45);
-      const sparkle = 0.4 + Math.sin((Date.now() + i * 200) * 0.003) * 0.2;
-      ctx.fillStyle = `rgba(255,255,255,${sparkle})`;
-      ctx.fillRect(x, y, 2, 2);
-    }
-    ctx.restore();
+        const wave = Math.sin(phase + x * 0.6 + y * 0.8) * 10;
+        const lift = Math.cos(phase * 1.4 + x * 0.3) * 6;
+        const jitter = (data.frequencyData[(x * y + y * 3) % data.frequencyData.length] / 255) * 12;
+        const finalX = px + wave + jitter * mid;
+        const finalY = py + lift - bass * 15;
 
-    auroraBandsRef.current.forEach((band, bandIndex) => {
-      const baseY = height * (0.35 + bandIndex * 0.12);
-      const maxPoints = 140;
-      const newPoint = 0.2 + energy * 0.8 + Math.sin(band.sway + rotationRef.current * 2 + bandIndex) * 0.15;
+        // Points
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${180 + treble * 120}, 90%, ${40 + mid * 30}%, 0.8)`;
+        ctx.arc(finalX, finalY, 2 + bass * 1.5, 0, Math.PI * 2);
+        ctx.fill();
 
-      band.points.push(newPoint);
-      if (band.points.length > maxPoints) band.points.shift();
-
-      band.sway += 0.01 + treble * 0.02;
-
-      const len = band.points.length;
-      if (len < 2) return;
-
-      const step = width / (len - 1);
-      const grad = ctx.createLinearGradient(0, 0, width, 0);
-      grad.addColorStop(0, `hsla(${band.hue}, 80%, 60%, ${0.4 + energy * 0.3})`);
-      grad.addColorStop(0.5, `hsla(${band.hue + 30}, 90%, 70%, ${0.8 + treble * 0.2})`);
-      grad.addColorStop(1, `hsla(${band.hue + 60}, 80%, 60%, ${0.4 + energy * 0.3})`);
-
-      ctx.save();
-      ctx.lineWidth = 2 + bandIndex * 0.5 + energy * 2;
-      ctx.shadowBlur = 30 + energy * 40;
-      ctx.shadowColor = `hsla(${band.hue + 20}, 90%, 60%, 0.9)`;
-      ctx.strokeStyle = grad;
-      ctx.globalCompositeOperation = 'screen';
-
-      ctx.beginPath();
-      let prevX = 0;
-      let prevY = baseY;
-      for (let i = 0; i < len; i++) {
-        const x = i * step;
-        const amplitude = band.points[i];
-        const y = baseY - Math.sin(i * 0.18 + rotationRef.current * 3) * 25 - amplitude * (height * 0.22 + bandIndex * 10);
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          const cpX = prevX + step / 2;
-          const cpY = (prevY + y) / 2;
-          ctx.quadraticCurveTo(cpX, cpY, x, y);
+        // Horizontal connections
+        const nextX = x + 1;
+        if (nextX < cols) {
+          const nextPx = nextX * spacing + ((y % 2) * spacing) / 2;
+          const nextWave = Math.sin(phase + nextX * 0.6 + y * 0.8) * 10;
+          const nextLift = Math.cos(phase * 1.4 + nextX * 0.3) * 6;
+          const nextJitter = (data.frequencyData[(nextX * y + y * 3) % data.frequencyData.length] / 255) * 12;
+          const hx = nextPx + nextWave + nextJitter * mid;
+          const hy = py + nextLift - bass * 15;
+          ctx.strokeStyle = `rgba(0, 255, 200, ${0.12 + bass * 0.4})`;
+          ctx.lineWidth = 1 + treble * 1.5;
+          ctx.beginPath();
+          ctx.moveTo(finalX, finalY);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
         }
 
-        prevX = x;
-        prevY = y;
+        // Vertical connections
+        const nextY = y + 1;
+        if (nextY < rows) {
+          const vy = nextY * spacing;
+          const vWave = Math.sin(phase + x * 0.6 + nextY * 0.8) * 10;
+          const vLift = Math.cos(phase * 1.4 + x * 0.3) * 6;
+          const vJitter = (data.frequencyData[(x * nextY + nextY * 3) % data.frequencyData.length] / 255) * 12;
+          const vx = px + vWave + vJitter * mid + ((nextY % 2) * spacing) / 2;
+          const vyPos = vy + vLift - bass * 15;
+          ctx.strokeStyle = `rgba(0, 180, 255, ${0.1 + treble * 0.5})`;
+          ctx.lineWidth = 1 + bass * 1.2;
+          ctx.beginPath();
+          ctx.moveTo(finalX, finalY);
+          ctx.lineTo(vx, vyPos);
+          ctx.stroke();
+        }
       }
-
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    // Bass ripples
-    const rippleCount = Math.min(3, Math.floor(bass * 5));
-    ctx.save();
-    ctx.translate(width / 2, height * 0.65);
-    for (let i = 0; i < rippleCount; i++) {
-      const radius = (i + 1) * (60 + bass * 140);
-      ctx.beginPath();
-      ctx.arc(0, 0, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(0, 255, 255, ${0.25 - i * 0.05})`;
-      ctx.lineWidth = 1 + bass * 3;
-      ctx.stroke();
     }
-    ctx.restore();
   };
 
   const draw = () => {
@@ -401,11 +497,10 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
     if (mode === VisualizerMode.Kaleidoscope) {
          ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
          ctx.fillRect(0, 0, width, height);
-    } else if (mode === VisualizerMode.Grid) {
+    } else if (mode !== VisualizerMode.Starfall) {
          ctx.clearRect(0,0,width,height);
-    } 
-    // Spectrogram/Circular/Waveform now handle their own full clears in their render methods
-    // to prevent artifacting or ghosting when switching.
+    }
+    // Spectrogram/Circular/Waveform/PulseTunnel/Lattice handle their own clears inside render methods.
 
     switch (mode) {
       case VisualizerMode.Spectrogram:
@@ -420,8 +515,14 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
       case VisualizerMode.Kaleidoscope:
         renderKaleidoscope(ctx, width, height, data);
         break;
-      case VisualizerMode.Grid:
-        renderGrid(ctx, width, height, data);
+      case VisualizerMode.PulseTunnel:
+        renderPulseTunnel(ctx, width, height, data);
+        break;
+      case VisualizerMode.Starfall:
+        renderStarfall(ctx, width, height, data);
+        break;
+      case VisualizerMode.Lattice:
+        renderLattice(ctx, width, height, data);
         break;
     }
 
