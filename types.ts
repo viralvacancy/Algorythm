@@ -4,8 +4,8 @@ export enum VisualizerMode {
   Waveform = 'Waveform',
   Kaleidoscope = 'Kaleidoscope',
   PulseTunnel = 'PulseTunnel',
-  Starfall = 'Starfall',
-  Lattice = 'Lattice'
+  TidalBloom = 'TidalBloom',
+  VoxelOctopus = 'VoxelOctopus'
 }
 
 export interface Track {

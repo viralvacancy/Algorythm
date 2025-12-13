@@ -9,8 +9,8 @@ export const MODES = [
   { id: VisualizerMode.Waveform, label: 'Oscilloscope' },
   { id: VisualizerMode.Kaleidoscope, label: 'Prism' },
   { id: VisualizerMode.PulseTunnel, label: 'Pulse Tunnel' },
-  { id: VisualizerMode.Starfall, label: 'Starfall' },
-  { id: VisualizerMode.Lattice, label: 'Neon Lattice' },
+  { id: VisualizerMode.TidalBloom, label: 'Tidal Bloom' },
+  { id: VisualizerMode.VoxelOctopus, label: 'Abyssal Voxelpod' },
 ];
 
 export const COLOR_PALETTES = {
