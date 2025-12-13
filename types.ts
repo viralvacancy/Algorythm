@@ -3,7 +3,9 @@ export enum VisualizerMode {
   Circular = 'Circular',
   Waveform = 'Waveform',
   Kaleidoscope = 'Kaleidoscope',
-  Grid = 'Grid'
+  PulseTunnel = 'PulseTunnel',
+  TidalBloom = 'TidalBloom',
+  VoxelOctopus = 'VoxelOctopus'
 }
 
 export interface Track {
