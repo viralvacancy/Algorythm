@@ -11,6 +11,10 @@ export const MODES = [
   { id: VisualizerMode.PulseTunnel, label: 'Pulse Tunnel' },
   { id: VisualizerMode.TidalBloom, label: 'Tidal Bloom' },
   { id: VisualizerMode.VoxelOctopus, label: 'Abyssal Voxelpod' },
+  // New WebGL modes
+  { id: VisualizerMode.NebulaStorm, label: 'Nebula Storm' },
+  { id: VisualizerMode.WireframeMatrix, label: 'Wireframe Matrix' },
+  { id: VisualizerMode.FractalCosmos, label: 'Fractal Cosmos' },
 ];
 
 export const COLOR_PALETTES = {

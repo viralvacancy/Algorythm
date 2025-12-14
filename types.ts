@@ -5,7 +5,11 @@ export enum VisualizerMode {
   Kaleidoscope = 'Kaleidoscope',
   PulseTunnel = 'PulseTunnel',
   TidalBloom = 'TidalBloom',
-  VoxelOctopus = 'VoxelOctopus'
+  VoxelOctopus = 'VoxelOctopus',
+  // New WebGL modes
+  NebulaStorm = 'NebulaStorm',
+  WireframeMatrix = 'WireframeMatrix',
+  FractalCosmos = 'FractalCosmos'
 }
 
 export interface Track {
