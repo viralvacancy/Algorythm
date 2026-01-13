@@ -1,0 +1,6 @@
+# Create the hidden directory
+mkdir -p .gemini
+
+# Create and open the file in nano (or use vim/code)
+nano .gemini/config.yaml
+
