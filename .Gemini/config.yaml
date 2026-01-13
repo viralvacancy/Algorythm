@@ -1,6 +1,17 @@
-# Create the hidden directory
-mkdir -p .gemini
+version: 1
 
-# Create and open the file in nano (or use vim/code)
-nano .gemini/config.yaml
-
+# Global settings for the Gemini Code Assist bot
+review:
+  # Force the bot to render actionable suggestions
+  render_suggestions: true
+  
+  # Specific instructions for the AI model
+  system_instructions: |
+    When finding errors or improvements in code:
+    1. Do NOT just comment with code blocks.
+    2. ALWAYS use the GitHub suggestion syntax for code changes.
+    3. Format your response exactly like this:
+       ```suggestion
+       <corrected_code_here>
+       ```
+    4. Ensure indentation in the suggestion matches the surrounding code perfectly.
