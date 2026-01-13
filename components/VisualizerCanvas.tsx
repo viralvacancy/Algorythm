@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { AudioEngine } from '../services/AudioEngine';
 import { VisualizerMode, AudioData } from '../types';
-import { NebulaStorm, WireframeMatrix, FractalCosmos } from './WebGLVisualizers';
+import { NebulaStorm, WireframeMatrix, FractalCosmos, AuroraWeave, HyperTunnel, QuantumLattice, IonSpire } from './WebGLVisualizers';
 
 interface Props {
   audioEngine: AudioEngine;
@@ -74,7 +74,11 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
   const isWebGLMode = [
     VisualizerMode.NebulaStorm,
     VisualizerMode.WireframeMatrix,
-    VisualizerMode.FractalCosmos
+    VisualizerMode.FractalCosmos,
+    VisualizerMode.AuroraWeave,
+    VisualizerMode.HyperTunnel,
+    VisualizerMode.QuantumLattice,
+    VisualizerMode.IonSpire
   ].includes(mode);
 
   // Cleanup state on mode change
@@ -1035,6 +1039,18 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
         )}
         {mode === VisualizerMode.FractalCosmos && (
           <FractalCosmos audioData={audioData} isPlaying={isPlaying} />
+        )}
+        {mode === VisualizerMode.AuroraWeave && (
+          <AuroraWeave audioData={audioData} isPlaying={isPlaying} />
+        )}
+        {mode === VisualizerMode.HyperTunnel && (
+          <HyperTunnel audioData={audioData} isPlaying={isPlaying} />
+        )}
+        {mode === VisualizerMode.QuantumLattice && (
+          <QuantumLattice audioData={audioData} isPlaying={isPlaying} />
+        )}
+        {mode === VisualizerMode.IonSpire && (
+          <IonSpire audioData={audioData} isPlaying={isPlaying} />
         )}
       </>
     );
