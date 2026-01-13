@@ -9,7 +9,11 @@ export enum VisualizerMode {
   // New WebGL modes
   NebulaStorm = 'NebulaStorm',
   WireframeMatrix = 'WireframeMatrix',
-  FractalCosmos = 'FractalCosmos'
+  FractalCosmos = 'FractalCosmos',
+  AuroraWeave = 'AuroraWeave',
+  HyperTunnel = 'HyperTunnel',
+  QuantumLattice = 'QuantumLattice',
+  IonSpire = 'IonSpire'
 }
 
 export interface Track {

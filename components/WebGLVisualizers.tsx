@@ -967,3 +967,628 @@ export const FractalCosmos: React.FC<FractalCosmosProps> = ({ audioData, isPlayi
 
   return <div ref={containerRef} className="absolute inset-0 z-0" />;
 };
+
+// ============================================================================
+// AURORA WEAVE - Fullscreen shader ribbon field with audio-driven shimmer
+// ============================================================================
+
+interface AuroraWeaveProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const AuroraWeave: React.FC<AuroraWeaveProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+
+  const vertexShader = `
+    uniform float uTime;
+    uniform float uBass;
+    uniform float uMid;
+    uniform float uTreble;
+    varying vec2 vUv;
+    varying float vWave;
+
+    float wave(vec2 p) {
+      return sin(p.x * 0.12 + uTime * 0.6) * 0.7 +
+             cos(p.y * 0.1 - uTime * 0.45) * 0.6 +
+             sin((p.x + p.y) * 0.08 + uTime * 0.7) * 0.5;
+    }
+
+    void main() {
+      vUv = uv;
+      vec3 pos = position;
+      float displacement = wave(pos.xy) * (3.0 + uBass * 10.0) + uMid * 4.0;
+      pos.z += displacement;
+      vWave = displacement;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `;
+
+  const fragmentShader = `
+    uniform float uTime;
+    uniform float uBass;
+    uniform float uTreble;
+    varying vec2 vUv;
+    varying float vWave;
+
+    void main() {
+      float glow = smoothstep(-6.0, 8.0, vWave);
+      float pulse = 0.5 + 0.5 * sin(uTime * 1.5 + vUv.y * 6.0);
+      vec3 colorA = vec3(0.05, 0.6, 1.0);
+      vec3 colorB = vec3(0.7, 0.1, 1.0);
+      vec3 colorC = vec3(0.1, 1.0, 0.8);
+      vec3 base = mix(colorA, colorB, vUv.y + sin(uTime * 0.2) * 0.1);
+      base = mix(base, colorC, vUv.x * 0.4);
+      float shimmer = (uTreble * 0.6 + 0.4) * glow;
+      vec3 color = base + shimmer * vec3(0.6, 0.9, 1.2);
+      float alpha = 0.6 + pulse * 0.3 + uBass * 0.2;
+      gl_FragColor = vec4(color, alpha);
+    }
+  `;
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      500
+    );
+    camera.position.set(0, 0, 120);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const geometry = new THREE.PlaneGeometry(200, 140, 140, 100);
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uBass: { value: 0 },
+        uMid: { value: 0 },
+        uTreble: { value: 0 },
+      },
+      vertexShader,
+      fragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    meshRef.current = mesh;
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !meshRef.current) return;
+
+    timeRef.current += 0.016;
+    const bass = audioData.bass / 255;
+    const mid = audioData.mid / 255;
+    const treble = audioData.treble / 255;
+
+    const material = meshRef.current.material as THREE.ShaderMaterial;
+    material.uniforms.uTime.value = timeRef.current;
+    material.uniforms.uBass.value = bass;
+    material.uniforms.uMid.value = mid;
+    material.uniforms.uTreble.value = treble;
+
+    meshRef.current.rotation.z = Math.sin(timeRef.current * 0.1) * 0.02;
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      if (meshRef.current) {
+        meshRef.current.geometry.dispose();
+        (meshRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      frameRef.current = requestAnimationFrame(animate);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};
+
+// ============================================================================
+// HYPER TUNNEL - Instanced ring corridor with audio-driven acceleration
+// ============================================================================
+
+interface HyperTunnelProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const HyperTunnel: React.FC<HyperTunnelProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const tunnelRef = useRef<THREE.InstancedMesh | null>(null);
+  const dummyRef = useRef(new THREE.Object3D());
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+  const ringDataRef = useRef<{ baseZ: number; speed: number; hue: number }[]>([]);
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x00000a);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      600
+    );
+    camera.position.z = 20;
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const ringCount = 80;
+    const depth = 420;
+    const geometry = new THREE.TorusGeometry(6, 0.35, 8, 42);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexColors: true,
+    });
+    const instanced = new THREE.InstancedMesh(geometry, material, ringCount);
+    const dummy = dummyRef.current;
+    const color = new THREE.Color();
+
+    ringDataRef.current = [];
+    for (let i = 0; i < ringCount; i++) {
+      const baseZ = -(i / ringCount) * depth;
+      const speed = 0.5 + (i / ringCount) * 1.2;
+      const hue = (i / ringCount) * 0.7 + 0.55;
+      ringDataRef.current.push({ baseZ, speed, hue });
+
+      dummy.position.set(0, 0, baseZ);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      instanced.setMatrixAt(i, dummy.matrix);
+      color.setHSL(hue % 1, 0.9, 0.6);
+      instanced.setColorAt(i, color);
+    }
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) {
+      instanced.instanceColor.needsUpdate = true;
+    }
+    scene.add(instanced);
+    tunnelRef.current = instanced;
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !tunnelRef.current) return;
+
+    timeRef.current += 0.016;
+    const bass = audioData.bass / 255;
+    const treble = audioData.treble / 255;
+
+    const dummy = dummyRef.current;
+    const depth = 420;
+    ringDataRef.current.forEach((ring, i) => {
+      const z = ((ring.baseZ + timeRef.current * ring.speed * (24 + bass * 22)) % depth) - depth;
+      const scale = 0.9 + bass * 1.6 + Math.sin(timeRef.current * 1.5 + i * 0.2) * 0.08;
+      dummy.position.set(0, 0, z);
+      dummy.rotation.z = timeRef.current * 0.2 + i * 0.05;
+      dummy.scale.set(scale, scale, 1);
+      dummy.updateMatrix();
+      tunnelRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    tunnelRef.current.instanceMatrix.needsUpdate = true;
+    (tunnelRef.current.material as THREE.MeshBasicMaterial).opacity = 0.45 + treble * 0.4;
+
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      if (tunnelRef.current) {
+        tunnelRef.current.geometry.dispose();
+        (tunnelRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      frameRef.current = requestAnimationFrame(animate);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};
+
+// ============================================================================
+// QUANTUM LATTICE - Instanced lattice pillars that breathe with frequency data
+// ============================================================================
+
+interface QuantumLatticeProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const QuantumLattice: React.FC<QuantumLatticeProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const latticeRef = useRef<THREE.InstancedMesh | null>(null);
+  const dummyRef = useRef(new THREE.Object3D());
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+  const latticeMapRef = useRef<{ x: number; z: number; index: number }[]>([]);
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020208);
+    scene.fog = new THREE.Fog(0x020208, 30, 120);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(
+      65,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      300
+    );
+    camera.position.set(0, 24, 40);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const gridSize = 18;
+    const spacing = 2.2;
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.85,
+      vertexColors: true,
+    });
+    const count = gridSize * gridSize;
+    const instanced = new THREE.InstancedMesh(geometry, material, count);
+    const dummy = dummyRef.current;
+    const color = new THREE.Color();
+
+    latticeMapRef.current = [];
+    let idx = 0;
+    for (let x = 0; x < gridSize; x++) {
+      for (let z = 0; z < gridSize; z++) {
+        const offsetX = (x - gridSize / 2) * spacing;
+        const offsetZ = (z - gridSize / 2) * spacing;
+        dummy.position.set(offsetX, 0.5, offsetZ);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        instanced.setMatrixAt(idx, dummy.matrix);
+
+        const hue = 0.55 + (x / gridSize) * 0.2 + (z / gridSize) * 0.15;
+        color.setHSL(hue % 1, 0.8, 0.55);
+        instanced.setColorAt(idx, color);
+
+        const audioIndex = Math.floor((idx / count) * 255);
+        latticeMapRef.current.push({ x: offsetX, z: offsetZ, index: audioIndex });
+        idx += 1;
+      }
+    }
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) {
+      instanced.instanceColor.needsUpdate = true;
+    }
+    scene.add(instanced);
+    latticeRef.current = instanced;
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !latticeRef.current) return;
+
+    timeRef.current += 0.016;
+    const bass = audioData.bass / 255;
+    const mid = audioData.mid / 255;
+    const treble = audioData.treble / 255;
+    const dummy = dummyRef.current;
+
+    latticeMapRef.current.forEach((cell, i) => {
+      const sample = audioData.frequencyData[cell.index] ?? 0;
+      const height = 0.6 + (sample / 255) * (6 + mid * 6) + bass * 2.5;
+      dummy.position.set(cell.x, height * 0.5, cell.z);
+      dummy.scale.set(1, height, 1);
+      dummy.updateMatrix();
+      latticeRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    latticeRef.current.instanceMatrix.needsUpdate = true;
+    (latticeRef.current.material as THREE.MeshBasicMaterial).opacity = 0.7 + treble * 0.25;
+
+    cameraRef.current.position.x = Math.sin(timeRef.current * 0.25) * 6;
+    cameraRef.current.lookAt(0, 0, 0);
+
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      if (latticeRef.current) {
+        latticeRef.current.geometry.dispose();
+        (latticeRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      frameRef.current = requestAnimationFrame(animate);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};
+
+// ============================================================================
+// ION SPIRE - Radial spires that resonate with treble detail
+// ============================================================================
+
+interface IonSpireProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const IonSpire: React.FC<IonSpireProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const spiresRef = useRef<THREE.InstancedMesh | null>(null);
+  const dummyRef = useRef(new THREE.Object3D());
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+  const spireDataRef = useRef<{ angle: number; radius: number; hue: number }[]>([]);
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x01010a);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      200
+    );
+    camera.position.set(0, 18, 32);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const spireCount = 64;
+    const geometry = new THREE.ConeGeometry(0.45, 4, 8);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexColors: true,
+    });
+    const instanced = new THREE.InstancedMesh(geometry, material, spireCount);
+    const dummy = dummyRef.current;
+    const color = new THREE.Color();
+
+    spireDataRef.current = [];
+    for (let i = 0; i < spireCount; i++) {
+      const angle = (i / spireCount) * Math.PI * 2;
+      const radius = 8 + Math.sin(i * 0.5) * 2;
+      const hue = 0.6 + (i / spireCount) * 0.4;
+      spireDataRef.current.push({ angle, radius, hue });
+
+      dummy.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+      dummy.scale.set(1, 1, 1);
+      dummy.rotation.y = angle;
+      dummy.updateMatrix();
+      instanced.setMatrixAt(i, dummy.matrix);
+      color.setHSL(hue % 1, 0.85, 0.6);
+      instanced.setColorAt(i, color);
+    }
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) {
+      instanced.instanceColor.needsUpdate = true;
+    }
+    scene.add(instanced);
+    spiresRef.current = instanced;
+
+    const coreGeometry = new THREE.SphereGeometry(2.5, 20, 20);
+    const coreMaterial = new THREE.MeshBasicMaterial({
+      color: 0x66ccff,
+      transparent: true,
+      opacity: 0.45,
+    });
+    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    scene.add(core);
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !spiresRef.current) return;
+
+    timeRef.current += 0.016;
+    const bass = audioData.bass / 255;
+    const treble = audioData.treble / 255;
+    const mid = audioData.mid / 255;
+    const dummy = dummyRef.current;
+
+    spireDataRef.current.forEach((spire, i) => {
+      const angle = spire.angle + timeRef.current * (0.3 + bass * 0.6);
+      const radius = spire.radius + Math.sin(timeRef.current * 1.2 + i) * 0.6;
+      const height = 2.5 + treble * 6 + Math.sin(timeRef.current * 2.5 + i) * 0.8;
+      dummy.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+      dummy.scale.set(1, height, 1);
+      dummy.rotation.y = angle + Math.PI * 0.5;
+      dummy.rotation.x = Math.sin(timeRef.current + i) * 0.1;
+      dummy.updateMatrix();
+      spiresRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    spiresRef.current.instanceMatrix.needsUpdate = true;
+    (spiresRef.current.material as THREE.MeshBasicMaterial).opacity = 0.55 + mid * 0.3;
+
+    cameraRef.current.position.x = Math.sin(timeRef.current * 0.35) * 6;
+    cameraRef.current.position.z = 32 + Math.cos(timeRef.current * 0.2) * 4;
+    cameraRef.current.lookAt(0, 0, 0);
+
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      if (spiresRef.current) {
+        spiresRef.current.geometry.dispose();
+        (spiresRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      frameRef.current = requestAnimationFrame(animate);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};

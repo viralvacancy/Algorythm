@@ -15,6 +15,10 @@ export const MODES = [
   { id: VisualizerMode.NebulaStorm, label: 'Nebula Storm' },
   { id: VisualizerMode.WireframeMatrix, label: 'Wireframe Matrix' },
   { id: VisualizerMode.FractalCosmos, label: 'Fractal Cosmos' },
+  { id: VisualizerMode.AuroraWeave, label: 'Aurora Weave' },
+  { id: VisualizerMode.HyperTunnel, label: 'Hyper Tunnel' },
+  { id: VisualizerMode.QuantumLattice, label: 'Quantum Lattice' },
+  { id: VisualizerMode.IonSpire, label: 'Ion Spire' },
 ];
 
 export const COLOR_PALETTES = {
