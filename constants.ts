@@ -7,18 +7,10 @@ export const MODES = [
   { id: VisualizerMode.Spectrogram, label: 'Neon Bars' },
   { id: VisualizerMode.Circular, label: 'Solar Vortex' },
   { id: VisualizerMode.Waveform, label: 'Oscilloscope' },
-  { id: VisualizerMode.Kaleidoscope, label: 'Prism' },
-  { id: VisualizerMode.PulseTunnel, label: 'Pulse Tunnel' },
-  { id: VisualizerMode.TidalBloom, label: 'Tidal Bloom' },
-  { id: VisualizerMode.VoxelOctopus, label: 'Abyssal Voxelpod' },
-  // New WebGL modes
-  { id: VisualizerMode.NebulaStorm, label: 'Nebula Storm' },
-  { id: VisualizerMode.WireframeMatrix, label: 'Wireframe Matrix' },
-  { id: VisualizerMode.FractalCosmos, label: 'Fractal Cosmos' },
-  { id: VisualizerMode.AuroraWeave, label: 'Aurora Weave' },
-  { id: VisualizerMode.HyperTunnel, label: 'Hyper Tunnel' },
-  { id: VisualizerMode.QuantumLattice, label: 'Quantum Lattice' },
-  { id: VisualizerMode.IonSpire, label: 'Ion Spire' },
+  { id: VisualizerMode.WireframeMatrix, label: 'Cyber Grid' },
+  { id: VisualizerMode.ParticleGalaxy, label: 'Particle Galaxy' },
+  { id: VisualizerMode.CrystalLattice, label: 'Crystal Lattice' },
+  { id: VisualizerMode.PlasmaWave, label: 'Plasma Wave' },
 ];
 
 export const COLOR_PALETTES = {
