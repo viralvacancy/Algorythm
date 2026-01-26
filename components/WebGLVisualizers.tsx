@@ -742,10 +742,12 @@ export const CrystalLattice: React.FC<CrystalLatticeProps> = ({ audioData, isPla
     // Add ambient light effect
     const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight; // Store light in ref
 
     const pointLight = new THREE.PointLight(0x88ccff, 1, 100);
     pointLight.position.set(0, 0, 0);
     scene.add(pointLight);
+    pointLightRef.current = pointLight; // Store light in ref
 
   }, []);
 
