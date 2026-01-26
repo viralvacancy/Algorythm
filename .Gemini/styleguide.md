@@ -1,7 +1,6 @@
-# Gemini Code Assist Style Guide
+## GitHub review etiquette
+* When flagging an issue, provide a ready-to-apply fix in a GitHub **Suggested Change** block so reviewers can click **Commit suggestion** or **Add suggestion to batch**:
 
-## Response Format Rules
-- **Actionable Suggestions:** Whenever you recommend a code change, you MUST provide it as a committable GitHub suggestion.
-- **Format:** Use the specific GitHub Markdown format for suggestions. Do not just paste a code block; ensure it triggers the "Commit suggestion" UI.
-- **Scope:** If a change is too large for a single suggestion block, break it down into smaller, committable chunks.
-- 
+  ```suggestion
+  // ← three back-ticks + the word “suggestion”
+  // <replacement lines go here>
