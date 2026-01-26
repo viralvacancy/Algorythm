@@ -377,189 +377,95 @@ export const WireframeMatrix: React.FC<WireframeMatrixProps> = ({ audioData, isP
 };
 
 // ============================================================================
-// PARTICLE GALAXY - Spiraling galaxy of audio-reactive particles
+// AETHER RINGS - Audio-charged ring tunnel with additive glow
 // ============================================================================
 
-interface ParticleGalaxyProps {
+interface AetherRingsProps {
   audioData: AudioData;
   isPlaying: boolean;
 }
 
-export const ParticleGalaxy: React.FC<ParticleGalaxyProps> = ({ audioData, isPlaying }) => {
+interface RingData {
+  z: number;
+  baseScale: number;
+  speed: number;
+  hue: number;
+  index: number;
+}
+
+export const AetherRings: React.FC<AetherRingsProps> = ({ audioData, isPlaying }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const particlesRef = useRef<THREE.Points | null>(null);
+  const ringsRef = useRef<THREE.InstancedMesh | null>(null);
+  const ringDataRef = useRef<RingData[]>([]);
+  const dummyRef = useRef(new THREE.Object3D());
   const timeRef = useRef(0);
   const frameRef = useRef<number | null>(null);
-
-  const vertexShader = `
-    uniform float uTime;
-    uniform float uBass;
-    uniform float uMid;
-    uniform float uTreble;
-    
-    attribute float size;
-    attribute vec3 customColor;
-    attribute float phase;
-    attribute float radius;
-    
-    varying vec3 vColor;
-    varying float vAlpha;
-    
-    void main() {
-      vColor = customColor;
-      
-      vec3 pos = position;
-      
-      // Spiral rotation
-      float angle = uTime * 0.3 + phase + radius * 0.5;
-      float newX = cos(angle) * radius;
-      float newZ = sin(angle) * radius;
-      
-      pos.x = newX + sin(uTime * 2.0 + phase) * uTreble * 2.0;
-      pos.y = position.y + sin(uTime + phase * 2.0) * uMid * 3.0;
-      pos.z = newZ + cos(uTime * 1.5 + phase) * uTreble * 2.0;
-      
-      // Pulse outward with bass
-      float pulse = 1.0 + uBass * 0.3;
-      pos *= pulse;
-      
-      vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-      
-      // Size attenuation with audio reactivity
-      float sizeAtten = size * (400.0 / -mvPosition.z);
-      gl_PointSize = sizeAtten * (1.0 + uBass * 0.6 + uTreble * 0.4);
-      
-      vAlpha = smoothstep(1000.0, 100.0, -mvPosition.z) * (0.5 + uMid * 0.5);
-      
-      gl_Position = projectionMatrix * mvPosition;
-    }
-  `;
-
-  const fragmentShader = `
-    varying vec3 vColor;
-    varying float vAlpha;
-    
-    void main() {
-      vec2 center = gl_PointCoord - vec2(0.5);
-      float dist = length(center);
-      
-      // Soft glow falloff
-      float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
-      
-      // Add bright core
-      float core = exp(-dist * 12.0) * 0.8;
-      
-      // Add glow halo
-      float glow = exp(-dist * 3.0) * 0.4;
-      
-      vec3 finalColor = vColor * (1.0 + core * 2.0 + glow);
-      
-      gl_FragColor = vec4(finalColor, alpha + core * 0.5);
-    }
-  `;
 
   const init = useCallback(() => {
     if (!containerRef.current) return;
 
-    // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000005);
-    scene.fog = new THREE.FogExp2(0x000008, 0.0005);
+    scene.background = new THREE.Color(0x05030c);
+    scene.fog = new THREE.Fog(0x05030c, 20, 180);
     sceneRef.current = scene;
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      1,
-      2000
-    );
-    camera.position.z = 600;
-    camera.position.y = 200;
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 300);
+    camera.position.z = 40;
     cameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Create particle system
-    const particleCount = 20000;
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
-    const phases = new Float32Array(particleCount);
-    const radii = new Float32Array(particleCount);
-
-    const colorPalette = [
-      new THREE.Color(0x6666ff), // Blue
-      new THREE.Color(0xff00ff), // Magenta
-      new THREE.Color(0x00ffff), // Cyan
-      new THREE.Color(0xff66ff), // Pink
-      new THREE.Color(0x4444ff), // Deep Blue
-      new THREE.Color(0x00ff88), // Teal
-    ];
-
-    for (let i = 0; i < particleCount; i++) {
-      // Create spiral galaxy distribution
-      const radius = Math.pow(Math.random(), 0.7) * 500;
-      const spinAngle = radius * 0.02 + Math.random() * Math.PI * 2;
-      const branchAngle = (Math.floor(Math.random() * 5) / 5) * Math.PI * 2;
-      
-      const randomRadius = Math.pow(Math.random(), 3) * 40;
-      const randomAngle = Math.random() * Math.PI * 2;
-      const randomY = (Math.random() - 0.5) * 80;
-
-      positions[i * 3] = Math.cos(branchAngle + spinAngle) * radius + Math.cos(randomAngle) * randomRadius;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 80 + randomY;
-      positions[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * radius + Math.sin(randomAngle) * randomRadius;
-
-      // Color based on distance from center
-      const colorIndex = Math.floor(radius / 100) % colorPalette.length;
-      const color = colorPalette[colorIndex];
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-
-      sizes[i] = Math.random() * 4 + 2;
-      phases[i] = Math.random() * Math.PI * 2;
-      radii[i] = radius;
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('customColor', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
-    geometry.setAttribute('radius', new THREE.BufferAttribute(radii, 1));
-
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uBass: { value: 0 },
-        uMid: { value: 0 },
-        uTreble: { value: 0 },
-      },
-      vertexShader,
-      fragmentShader,
+    const ringGeometry = new THREE.TorusGeometry(8, 0.25, 6, 48);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
       transparent: true,
+      opacity: 0.85,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      vertexColors: true,
     });
 
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-    particlesRef.current = particles;
+    const ringCount = 90;
+    const instanced = new THREE.InstancedMesh(ringGeometry, ringMaterial, ringCount);
+    const color = new THREE.Color();
+    ringDataRef.current = [];
 
+    for (let i = 0; i < ringCount; i += 1) {
+      const z = -i * 4.2;
+      const baseScale = 0.6 + Math.random() * 0.9;
+      const speed = 0.6 + Math.random() * 0.7;
+      const hue = 190 + Math.random() * 130;
+      const index = Math.floor((i / ringCount) * 255);
+
+      ringDataRef.current.push({ z, baseScale, speed, hue, index });
+      color.setHSL(hue / 360, 0.85, 0.65);
+      instanced.setColorAt(i, color);
+    }
+
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) {
+      instanced.instanceColor.needsUpdate = true;
+    }
+    scene.add(instanced);
+    ringsRef.current = instanced;
+
+    const glowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(120, 120),
+      new THREE.MeshBasicMaterial({ color: 0x140022, transparent: true, opacity: 0.25 })
+    );
+    glowPlane.position.z = -60;
+    scene.add(glowPlane);
   }, []);
 
   const animate = useCallback(() => {
-    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !ringsRef.current) return;
 
     timeRef.current += 0.016;
     const time = timeRef.current;
@@ -567,235 +473,33 @@ export const ParticleGalaxy: React.FC<ParticleGalaxyProps> = ({ audioData, isPla
     const bass = audioData.bass / 255;
     const mid = audioData.mid / 255;
     const treble = audioData.treble / 255;
-
-    // Update shader uniforms
-    if (particlesRef.current) {
-      const material = particlesRef.current.material as THREE.ShaderMaterial;
-      material.uniforms.uTime.value = time;
-      material.uniforms.uBass.value = bass;
-      material.uniforms.uMid.value = mid;
-      material.uniforms.uTreble.value = treble;
-
-      // Rotate the entire galaxy
-      particlesRef.current.rotation.y = time * 0.05 + mid * 0.02;
-      particlesRef.current.rotation.x = Math.sin(time * 0.2) * 0.1 + bass * 0.1;
-    }
-
-    // Camera orbit
-    cameraRef.current.position.x = Math.sin(time * 0.1) * 300;
-    cameraRef.current.position.z = Math.cos(time * 0.1) * 600;
-    cameraRef.current.position.y = 200 + Math.sin(time * 0.15) * 100;
-    cameraRef.current.lookAt(0, 0, 0);
-
-    rendererRef.current.render(sceneRef.current, cameraRef.current);
-    frameRef.current = requestAnimationFrame(animate);
-  }, [audioData]);
-
-  useEffect(() => {
-    init();
-
-    const handleResize = () => {
-      if (!cameraRef.current || !rendererRef.current) return;
-      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      if (rendererRef.current && containerRef.current) {
-        const canvas = rendererRef.current.domElement;
-        if (canvas.parentElement === containerRef.current) {
-          containerRef.current.removeChild(canvas);
-        }
-        rendererRef.current.dispose();
-      }
-    };
-  }, [init]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      frameRef.current = requestAnimationFrame(animate);
-    } else {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    }
-
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [isPlaying, animate]);
-
-  return <div ref={containerRef} className="absolute inset-0 z-0" />;
-};
-
-// ============================================================================
-// CRYSTAL LATTICE - Geometric crystal formation with audio modulation
-// ============================================================================
-
-interface CrystalLatticeProps {
-  audioData: AudioData;
-  isPlaying: boolean;
-}
-
-export const CrystalLattice: React.FC<CrystalLatticeProps> = ({ audioData, isPlaying }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const crystalsRef = useRef<THREE.InstancedMesh | null>(null);
-  const dummyRef = useRef(new THREE.Object3D());
-  const timeRef = useRef(0);
-  const frameRef = useRef<number | null>(null);
-  const crystalDataRef = useRef<{ x: number; y: number; z: number; phase: number; index: number }[]>([]);
-
-  const init = useCallback(() => {
-    if (!containerRef.current) return;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000510);
-    scene.fog = new THREE.Fog(0x000510, 20, 100);
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      300
-    );
-    camera.position.set(0, 0, 50);
-    cameraRef.current = camera;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    // Create crystal lattice
-    const gridSize = 12;
-    const spacing = 4.5;
-    const count = gridSize * gridSize * gridSize;
-    
-    // Use octahedron for crystal shape
-    const geometry = new THREE.OctahedronGeometry(0.8, 0);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.7,
-      wireframe: true,
-      vertexColors: true,
-    });
-    
-    const instanced = new THREE.InstancedMesh(geometry, material, count);
     const dummy = dummyRef.current;
-    const color = new THREE.Color();
+    const ringCount = ringDataRef.current.length;
+    const resetDepth = -ringCount * 4.2;
 
-    crystalDataRef.current = [];
-    let idx = 0;
-    
-    for (let x = 0; x < gridSize; x++) {
-      for (let y = 0; y < gridSize; y++) {
-        for (let z = 0; z < gridSize; z++) {
-          const offsetX = (x - gridSize / 2) * spacing;
-          const offsetY = (y - gridSize / 2) * spacing;
-          const offsetZ = (z - gridSize / 2) * spacing;
-          
-          dummy.position.set(offsetX, offsetY, offsetZ);
-          dummy.scale.set(1, 1, 1);
-          dummy.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-          );
-          dummy.updateMatrix();
-          instanced.setMatrixAt(idx, dummy.matrix);
+    ringDataRef.current.forEach((ring, i) => {
+      const sample = audioData.frequencyData[ring.index] ?? 0;
+      const audioBoost = sample / 255;
+      ring.z += (1.2 + bass * 2.2) * ring.speed;
+      if (ring.z > 50) ring.z = resetDepth;
 
-          // Color based on position
-          const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ);
-          const hue = 0.5 + (dist / (gridSize * spacing)) * 0.3 + (y / gridSize) * 0.2;
-          color.setHSL(hue % 1, 0.8, 0.6);
-          instanced.setColorAt(idx, color);
+      const wobbleX = Math.sin(time * 0.7 + i) * 2.5 * mid;
+      const wobbleY = Math.cos(time * 0.6 + i) * 2.5 * treble;
+      const scale = ring.baseScale + audioBoost * 0.8 + bass * 0.3;
 
-          const audioIndex = Math.floor((idx / count) * 255);
-          crystalDataRef.current.push({
-            x: offsetX,
-            y: offsetY,
-            z: offsetZ,
-            phase: Math.random() * Math.PI * 2,
-            index: audioIndex
-          });
-          idx += 1;
-        }
-      }
-    }
-    
-    instanced.instanceMatrix.needsUpdate = true;
-    if (instanced.instanceColor) {
-      instanced.instanceColor.needsUpdate = true;
-    }
-    scene.add(instanced);
-    crystalsRef.current = instanced;
-
-    // Add ambient light effect
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
-    scene.add(ambientLight);
-    ambientLightRef.current = ambientLight; // Store light in ref
-
-    const pointLight = new THREE.PointLight(0x88ccff, 1, 100);
-    pointLight.position.set(0, 0, 0);
-    scene.add(pointLight);
-    pointLightRef.current = pointLight; // Store light in ref
-
-  }, []);
-
-  const animate = useCallback(() => {
-    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !crystalsRef.current) return;
-
-    timeRef.current += 0.016;
-    const bass = audioData.bass / 255;
-    const mid = audioData.mid / 255;
-    const treble = audioData.treble / 255;
-    const dummy = dummyRef.current;
-
-    crystalDataRef.current.forEach((crystal, i) => {
-      const sample = audioData.frequencyData[crystal.index] ?? 0;
-      const audioReact = (sample / 255) * (2 + mid * 3);
-      
-      // Oscillating scale
-      const baseScale = 0.5 + audioReact;
-      const pulse = 1.0 + Math.sin(timeRef.current * 3.0 + crystal.phase) * 0.2 * treble;
-      const scale = baseScale * pulse;
-      
-      // Subtle position animation
-      const wobbleX = Math.sin(timeRef.current + crystal.phase) * 0.3 * mid;
-      const wobbleY = Math.cos(timeRef.current * 1.2 + crystal.phase * 0.7) * 0.3 * mid;
-      const wobbleZ = Math.sin(timeRef.current * 0.8 + crystal.phase * 1.3) * 0.3 * mid;
-      
-      dummy.position.set(
-        crystal.x + wobbleX,
-        crystal.y + wobbleY,
-        crystal.z + wobbleZ
-      );
-      dummy.scale.set(scale, scale * (1 + bass * 0.5), scale);
-      dummy.rotation.x = timeRef.current * 0.5 + crystal.phase;
-      dummy.rotation.y = timeRef.current * 0.3 + crystal.phase * 0.5;
-      dummy.rotation.z = timeRef.current * 0.7 + crystal.phase * 1.5;
+      dummy.position.set(wobbleX, wobbleY, ring.z);
+      dummy.rotation.set(time * 0.3 + i * 0.05, time * 0.4 + i * 0.08, time * 0.2);
+      dummy.scale.set(scale, scale, scale);
       dummy.updateMatrix();
-      crystalsRef.current!.setMatrixAt(i, dummy.matrix);
+      ringsRef.current!.setMatrixAt(i, dummy.matrix);
     });
-    
-    crystalsRef.current.instanceMatrix.needsUpdate = true;
-    (crystalsRef.current.material as THREE.MeshBasicMaterial).opacity = 0.5 + treble * 0.3;
 
-    // Camera orbit
-    const radius = 50;
-    cameraRef.current.position.x = Math.sin(timeRef.current * 0.15) * radius;
-    cameraRef.current.position.y = Math.cos(timeRef.current * 0.1) * radius * 0.5;
-    cameraRef.current.position.z = Math.cos(timeRef.current * 0.15) * radius;
-    cameraRef.current.lookAt(0, 0, 0);
+    ringsRef.current.instanceMatrix.needsUpdate = true;
+    (ringsRef.current.material as THREE.MeshBasicMaterial).opacity = 0.6 + treble * 0.3;
+
+    cameraRef.current.position.x = Math.sin(time * 0.2) * 6;
+    cameraRef.current.position.y = Math.cos(time * 0.15) * 4;
+    cameraRef.current.lookAt(0, 0, -40);
 
     rendererRef.current.render(sceneRef.current, cameraRef.current);
     frameRef.current = requestAnimationFrame(animate);
@@ -823,9 +527,9 @@ export const CrystalLattice: React.FC<CrystalLatticeProps> = ({ audioData, isPla
         }
         rendererRef.current.dispose();
       }
-      if (crystalsRef.current) {
-        crystalsRef.current.geometry.dispose();
-        (crystalsRef.current.material as THREE.Material).dispose();
+      if (ringsRef.current) {
+        ringsRef.current.geometry.dispose();
+        (ringsRef.current.material as THREE.Material).dispose();
       }
     };
   }, [init]);
@@ -846,15 +550,212 @@ export const CrystalLattice: React.FC<CrystalLatticeProps> = ({ audioData, isPla
 };
 
 // ============================================================================
-// PLASMA WAVE - Fullscreen shader with organic plasma effects
+// PRISM SHARD FIELD - Instanced crystalline shards with reactive lighting
 // ============================================================================
 
-interface PlasmaWaveProps {
+interface PrismShardFieldProps {
   audioData: AudioData;
   isPlaying: boolean;
 }
 
-export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) => {
+interface ShardData {
+  position: THREE.Vector3;
+  spin: THREE.Vector3;
+  phase: number;
+  index: number;
+}
+
+export const PrismShardField: React.FC<PrismShardFieldProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const shardsRef = useRef<THREE.InstancedMesh | null>(null);
+  const shardDataRef = useRef<ShardData[]>([]);
+  const dummyRef = useRef(new THREE.Object3D());
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+  const lightRef = useRef<THREE.PointLight | null>(null);
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x03040a);
+    scene.fog = new THREE.Fog(0x03040a, 25, 120);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 8, 40);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const geometry = new THREE.IcosahedronGeometry(0.9, 0);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      metalness: 0.25,
+      roughness: 0.35,
+      transparent: true,
+      opacity: 0.85,
+      emissive: new THREE.Color(0x111133),
+      vertexColors: true,
+    });
+
+    const shardCount = 620;
+    const instanced = new THREE.InstancedMesh(geometry, material, shardCount);
+    const color = new THREE.Color();
+    shardDataRef.current = [];
+
+    for (let i = 0; i < shardCount; i += 1) {
+      const radius = 8 + Math.random() * 30;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const position = new THREE.Vector3(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+      const spin = new THREE.Vector3(
+        Math.random() * 0.6 + 0.2,
+        Math.random() * 0.6 + 0.2,
+        Math.random() * 0.6 + 0.2
+      );
+      const phase = Math.random() * Math.PI * 2;
+      const index = Math.floor((i / shardCount) * 255);
+
+      shardDataRef.current.push({ position, spin, phase, index });
+      const hue = (0.55 + radius / 80 + i / shardCount) % 1;
+      color.setHSL(hue, 0.85, 0.6);
+      instanced.setColorAt(i, color);
+    }
+
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) {
+      instanced.instanceColor.needsUpdate = true;
+    }
+    scene.add(instanced);
+    shardsRef.current = instanced;
+
+    scene.add(new THREE.AmbientLight(0x223355, 0.6));
+    const pointLight = new THREE.PointLight(0x99ccff, 1.2, 150);
+    pointLight.position.set(0, 10, 20);
+    scene.add(pointLight);
+    lightRef.current = pointLight;
+
+    const rimLight = new THREE.PointLight(0xff66ff, 0.7, 120);
+    rimLight.position.set(-20, -10, -20);
+    scene.add(rimLight);
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !shardsRef.current) return;
+
+    timeRef.current += 0.016;
+    const time = timeRef.current;
+
+    const bass = audioData.bass / 255;
+    const mid = audioData.mid / 255;
+    const treble = audioData.treble / 255;
+    const dummy = dummyRef.current;
+
+    shardDataRef.current.forEach((shard, i) => {
+      const sample = audioData.frequencyData[shard.index] ?? 0;
+      const audioBoost = sample / 255;
+      const pulse = 0.7 + audioBoost * 1.4 + bass * 0.4;
+      const drift = Math.sin(time * 0.6 + shard.phase) * 1.2 * mid;
+
+      dummy.position.set(
+        shard.position.x + drift,
+        shard.position.y + Math.cos(time * 0.5 + shard.phase) * 0.8 * treble,
+        shard.position.z
+      );
+      dummy.scale.set(pulse, pulse * (1 + mid * 0.2), pulse);
+      dummy.rotation.set(
+        time * shard.spin.x + shard.phase,
+        time * shard.spin.y + shard.phase,
+        time * shard.spin.z
+      );
+      dummy.updateMatrix();
+      shardsRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+
+    shardsRef.current.instanceMatrix.needsUpdate = true;
+    const material = shardsRef.current.material as THREE.MeshStandardMaterial;
+    material.emissiveIntensity = 0.3 + treble * 0.8;
+
+    if (lightRef.current) {
+      lightRef.current.intensity = 0.8 + bass * 1.2;
+      lightRef.current.position.x = Math.sin(time * 0.4) * 15;
+      lightRef.current.position.z = Math.cos(time * 0.5) * 20;
+    }
+
+    cameraRef.current.position.x = Math.sin(time * 0.2) * 14;
+    cameraRef.current.position.z = 40 + Math.cos(time * 0.15) * 6;
+    cameraRef.current.lookAt(0, 0, 0);
+
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        const canvas = rendererRef.current.domElement;
+        if (canvas.parentElement === containerRef.current) {
+          containerRef.current.removeChild(canvas);
+        }
+        rendererRef.current.dispose();
+      }
+      if (shardsRef.current) {
+        shardsRef.current.geometry.dispose();
+        (shardsRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      frameRef.current = requestAnimationFrame(animate);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};
+
+// ============================================================================
+// FLUX BLOOM - Fullscreen shader with pulsing energy fields
+// ============================================================================
+
+interface FluxBloomProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -865,82 +766,49 @@ export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) 
 
   const fragmentShader = `
     precision highp float;
-    
+
     uniform float uTime;
     uniform vec2 uResolution;
     uniform float uBass;
     uniform float uMid;
     uniform float uTreble;
     uniform float uRms;
-    
-    // Plasma wave functions
-    float plasma(vec2 p, float time) {
-      float a = sin(p.x * 3.0 + time * 0.8 + uBass * 5.0);
-      float b = cos(p.y * 2.5 - time * 0.6 + uMid * 4.0);
-      float c = sin((p.x + p.y) * 2.0 + time + uTreble * 3.0);
-      float d = cos(length(p) * 4.0 - time * 1.2 + uBass * 2.0);
-      return (a + b + c + d) * 0.25;
+
+    vec3 palette(float t, vec3 shift) {
+      return 0.55 + 0.45 * cos(6.28318 * (vec3(0.2, 0.35, 0.55) * t + shift));
     }
-    
-    vec3 palette(float t) {
-      // Dynamic color palette based on audio
-      vec3 a = vec3(0.5, 0.5, 0.5);
-      vec3 b = vec3(0.5, 0.5, 0.5);
-      vec3 c = vec3(1.0, 1.0, 1.0);
-      vec3 d = vec3(0.0 + uBass * 0.3, 0.33 + uMid * 0.3, 0.67 + uTreble * 0.3);
-      return a + b * cos(6.28318 * (c * t + d));
+
+    float blob(vec2 uv, vec2 center, float radius) {
+      float d = length(uv - center);
+      return radius / (d + 0.15);
     }
-    
+
     void main() {
       vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-      
-      // Multi-layer plasma
-      float time = uTime * 0.5;
-      
-      // Layer 1 - Base plasma
-      float p1 = plasma(uv * 2.0, time);
-      
-      // Layer 2 - Distorted plasma
-      vec2 distorted = uv + vec2(
-        sin(uv.y * 5.0 + time * 0.7) * 0.1 * uMid,
-        cos(uv.x * 5.0 - time * 0.8) * 0.1 * uMid
-      );
-      float p2 = plasma(distorted * 1.5, time * 1.3);
-      
-      // Layer 3 - Radial plasma
-      float angle = atan(uv.y, uv.x);
-      float radius = length(uv);
-      vec2 polar = vec2(angle * 2.0 / 3.14159, radius);
-      float p3 = plasma(polar * 3.0, time * 0.7);
-      
-      // Combine layers
-      float value = (p1 + p2 + p3) * 0.333;
-      value = value * 0.5 + 0.5; // Normalize to 0-1
-      
-      // Audio reactivity
-      value += uRms * 0.3;
-      value += sin(radius * 10.0 - time * 3.0) * uBass * 0.2;
-      
-      // Color mapping
-      vec3 col = palette(value + time * 0.1);
-      
-      // Add glow around center
-      float glow = 1.0 / (1.0 + radius * radius * 2.0);
-      col += glow * vec3(0.2, 0.3, 0.5) * uTreble;
-      
-      // Pulsing vignette
-      float vig = 1.0 - length(uv) * (0.3 + uBass * 0.3);
-      vig = smoothstep(0.0, 1.0, vig);
-      col *= vig;
-      
-      // Add scanlines
-      float scanline = sin(gl_FragCoord.y * 2.0 + time * 10.0) * 0.02 + 0.98;
-      col *= scanline;
-      
-      // Enhance brightness on beat
-      col *= (1.0 + uBass * 0.3);
-      
-      gl_FragColor = vec4(col, 1.0);
+      float t = uTime * 0.35;
+
+      vec2 c1 = vec2(sin(t * 0.9), cos(t * 0.7)) * (0.55 + uBass * 0.25);
+      vec2 c2 = vec2(cos(t * 0.6 + 1.2), sin(t * 0.8 + 2.1)) * (0.7 + uMid * 0.3);
+      vec2 c3 = vec2(sin(t * 1.1 + 2.4), cos(t * 0.5 + 1.5)) * (0.6 + uTreble * 0.35);
+
+      float field = 0.0;
+      field += blob(uv, c1, 0.55 + uBass * 0.2);
+      field += blob(uv, c2, 0.5 + uMid * 0.2);
+      field += blob(uv, c3, 0.45 + uTreble * 0.2);
+
+      float ripple = sin((uv.x + uv.y) * 6.0 - t * 4.0) * 0.08;
+      field += ripple;
+
+      float glow = smoothstep(1.0, 2.4, field);
+      vec3 color = palette(field * 0.35, vec3(0.12 + uBass * 0.2, 0.32 + uMid * 0.2, 0.6 + uTreble * 0.2));
+      color = mix(color, vec3(0.05, 0.02, 0.08), smoothstep(0.0, 0.5, length(uv)));
+      color += glow * vec3(0.3, 0.45, 0.9) * (0.6 + uTreble);
+      color *= 0.7 + uRms * 0.6;
+
+      float vignette = smoothstep(1.2, 0.2, length(uv));
+      color *= vignette;
+
+      gl_FragColor = vec4(color, 1.0);
     }
   `;
 
@@ -953,22 +821,18 @@ export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) 
   const init = useCallback(() => {
     if (!containerRef.current) return;
 
-    // Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Orthographic camera for fullscreen quad
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     cameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Fullscreen quad
     const geometry = new THREE.PlaneGeometry(2, 2);
     const material = new THREE.ShaderMaterial({
       uniforms: {
@@ -986,7 +850,6 @@ export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) 
     const mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
     meshRef.current = mesh;
-
   }, []);
 
   const animate = useCallback(() => {
@@ -994,17 +857,12 @@ export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) 
 
     timeRef.current += 0.016;
 
-    const bass = audioData.bass / 255;
-    const mid = audioData.mid / 255;
-    const treble = audioData.treble / 255;
-    const rms = audioData.rms / 255;
-
     const material = meshRef.current.material as THREE.ShaderMaterial;
     material.uniforms.uTime.value = timeRef.current;
-    material.uniforms.uBass.value = bass;
-    material.uniforms.uMid.value = mid;
-    material.uniforms.uTreble.value = treble;
-    material.uniforms.uRms.value = rms;
+    material.uniforms.uBass.value = audioData.bass / 255;
+    material.uniforms.uMid.value = audioData.mid / 255;
+    material.uniforms.uTreble.value = audioData.treble / 255;
+    material.uniforms.uRms.value = audioData.rms / 255;
 
     rendererRef.current.render(sceneRef.current, cameraRef.current);
     frameRef.current = requestAnimationFrame(animate);
@@ -1038,8 +896,8 @@ export const PlasmaWave: React.FC<PlasmaWaveProps> = ({ audioData, isPlaying }) 
   useEffect(() => {
     if (isPlaying) {
       frameRef.current = requestAnimationFrame(animate);
-    } else {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    } else if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
     }
 
     return () => {

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { AudioEngine } from '../services/AudioEngine';
 import { VisualizerMode, AudioData } from '../types';
-import { WireframeMatrix, ParticleGalaxy, CrystalLattice, PlasmaWave } from './WebGLVisualizers';
+import { WireframeMatrix, AetherRings, PrismShardField, FluxBloom } from './WebGLVisualizers';
 
 interface Props {
   audioEngine: AudioEngine;
@@ -42,9 +42,9 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
   // Check if this is a WebGL mode
   const isWebGLMode = [
     VisualizerMode.WireframeMatrix,
-    VisualizerMode.ParticleGalaxy,
-    VisualizerMode.CrystalLattice,
-    VisualizerMode.PlasmaWave
+    VisualizerMode.AetherRings,
+    VisualizerMode.PrismShardField,
+    VisualizerMode.FluxBloom
   ].includes(mode);
 
   // Cleanup state on mode change
@@ -981,14 +981,14 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
         {mode === VisualizerMode.WireframeMatrix && (
           <WireframeMatrix audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.ParticleGalaxy && (
-          <ParticleGalaxy audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.AetherRings && (
+          <AetherRings audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.CrystalLattice && (
-          <CrystalLattice audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.PrismShardField && (
+          <PrismShardField audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.PlasmaWave && (
-          <PlasmaWave audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.FluxBloom && (
+          <FluxBloom audioData={audioData} isPlaying={isPlaying} />
         )}
       </>
     );

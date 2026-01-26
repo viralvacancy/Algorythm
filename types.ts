@@ -3,9 +3,9 @@ export enum VisualizerMode {
   Circular = 'Circular',
   Waveform = 'Waveform',
   WireframeMatrix = 'WireframeMatrix',
-  ParticleGalaxy = 'ParticleGalaxy',
-  CrystalLattice = 'CrystalLattice',
-  PlasmaWave = 'PlasmaWave'
+  AetherRings = 'AetherRings',
+  PrismShardField = 'PrismShardField',
+  FluxBloom = 'FluxBloom'
 }
 
 export interface Track {
