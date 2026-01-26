@@ -8,9 +8,9 @@ export const MODES = [
   { id: VisualizerMode.Circular, label: 'Solar Vortex' },
   { id: VisualizerMode.Waveform, label: 'Oscilloscope' },
   { id: VisualizerMode.WireframeMatrix, label: 'Cyber Grid' },
-  { id: VisualizerMode.ParticleGalaxy, label: 'Particle Galaxy' },
-  { id: VisualizerMode.CrystalLattice, label: 'Crystal Lattice' },
-  { id: VisualizerMode.PlasmaWave, label: 'Plasma Wave' },
+  { id: VisualizerMode.AetherRings, label: 'Aether Rings' },
+  { id: VisualizerMode.PrismShardField, label: 'Prism Shards' },
+  { id: VisualizerMode.FluxBloom, label: 'Flux Bloom' },
 ];
 
 export const COLOR_PALETTES = {
