@@ -4,7 +4,7 @@ memory_config:
 
 code_review:
   disable: false                # must be false, or you get no review
-  comment_severity_threshold: LOW  # default is MEDIUM; LOW = more comments
+  comment_severity_threshold: MEDIUM  # default is MEDIUM; LOW = more comments
   max_review_comments: -1       # -1 = no limit
 
   pull_request_opened:
