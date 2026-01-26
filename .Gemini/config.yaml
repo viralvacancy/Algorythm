@@ -1,17 +1,14 @@
-version: 1
+have_fun: false
+memory_config:
+  disabled: false
 
-# Global settings for the Gemini Code Assist bot
-review:
-  # Force the bot to render actionable suggestions
-  render_suggestions: true
-  
-  # Specific instructions for the AI model
-  system_instructions: |
-    When finding errors or improvements in code:
-    1. Do NOT just comment with code blocks.
-    2. ALWAYS use the GitHub suggestion syntax for code changes.
-    3. Format your response exactly like this:
-       ```suggestion
-       <corrected_code_here>
-       ```
-    4. Ensure indentation in the suggestion matches the surrounding code perfectly.
+code_review:
+  disable: false                # must be false, or you get no review
+  comment_severity_threshold: LOW  # default is MEDIUM; LOW = more comments
+  max_review_comments: -1       # -1 = no limit
+
+  pull_request_opened:
+    help: false                 # optional “help” message on new PR
+    summary: true               # PR summary comment
+    code_review: true           # auto-review on open
+    include_drafts: true        # review drafts too
