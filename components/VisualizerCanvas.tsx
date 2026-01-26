@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { AudioEngine } from '../services/AudioEngine';
 import { VisualizerMode, AudioData } from '../types';
-import { NebulaStorm, WireframeMatrix, FractalCosmos, AuroraWeave, HyperTunnel, QuantumLattice, IonSpire } from './WebGLVisualizers';
+import { WireframeMatrix, ParticleGalaxy, CrystalLattice, PlasmaWave } from './WebGLVisualizers';
 
 interface Props {
   audioEngine: AudioEngine;
@@ -9,32 +9,7 @@ interface Props {
   isPlaying: boolean;
 }
 
-interface KaleidoscopeParticle {
-  x: number;
-  y: number;
-  angle: number;
-  speed: number;
-  life: number;
-  color: string;
-  size: number;
-}
 
-interface BubbleParticle {
-  x: number;
-  y: number;
-  radius: number;
-  drift: number;
-  life: number;
-  speed: number;
-}
-
-interface VoxelArmNode {
-  x: number;
-  y: number;
-  size: number;
-  depth: number;
-  hue: number;
-}
 
 // Easing functions for smoother animations
 const easeOutQuart = (t: number): number => 1 - Math.pow(1 - t, 4);
@@ -53,12 +28,6 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
     treble: 0,
   });
 
-  // Particles for Kaleidoscope Mode
-  const kaleidoscopeParticlesRef = useRef<KaleidoscopeParticle[]>([]);
-  const bubbleFieldRef = useRef<BubbleParticle[]>([]);
-  const waterPhaseRef = useRef<number>(0);
-  const octopusPulseRef = useRef<number>(0);
-  
   // Smoothed audio values for enhanced reactivity
   const smoothedBassRef = useRef<number>(0);
   const smoothedMidRef = useRef<number>(0);
@@ -72,21 +41,14 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
 
   // Check if this is a WebGL mode
   const isWebGLMode = [
-    VisualizerMode.NebulaStorm,
     VisualizerMode.WireframeMatrix,
-    VisualizerMode.FractalCosmos,
-    VisualizerMode.AuroraWeave,
-    VisualizerMode.HyperTunnel,
-    VisualizerMode.QuantumLattice,
-    VisualizerMode.IonSpire
+    VisualizerMode.ParticleGalaxy,
+    VisualizerMode.CrystalLattice,
+    VisualizerMode.PlasmaWave
   ].includes(mode);
 
   // Cleanup state on mode change
   useEffect(() => {
-    kaleidoscopeParticlesRef.current = [];
-    bubbleFieldRef.current = [];
-    waterPhaseRef.current = 0;
-    octopusPulseRef.current = 0;
     rotationRef.current = 0;
     historyRef.current = [];
   }, [mode]);
@@ -962,10 +924,7 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
     }
 
     // Context clearing logic per mode
-    if (mode === VisualizerMode.Kaleidoscope) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-      ctx.fillRect(0, 0, width, height);
-    } else if (mode === VisualizerMode.TidalBloom || mode === VisualizerMode.Circular) {
+    if (mode === VisualizerMode.Circular) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
       ctx.fillRect(0, 0, width, height);
     } else {
@@ -981,18 +940,6 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
         break;
       case VisualizerMode.Waveform:
         renderWaveform(ctx, width, height, data);
-        break;
-      case VisualizerMode.Kaleidoscope:
-        renderKaleidoscope(ctx, width, height, data);
-        break;
-      case VisualizerMode.PulseTunnel:
-        renderPulseTunnel(ctx, width, height, data);
-        break;
-      case VisualizerMode.TidalBloom:
-        renderTidalBloom(ctx, width, height, data);
-        break;
-      case VisualizerMode.VoxelOctopus:
-        renderVoxelOctopus(ctx, width, height, data);
         break;
     }
 
@@ -1031,26 +978,17 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
           ref={canvasRef}
           className="hidden"
         />
-        {mode === VisualizerMode.NebulaStorm && (
-          <NebulaStorm audioData={audioData} isPlaying={isPlaying} />
-        )}
         {mode === VisualizerMode.WireframeMatrix && (
           <WireframeMatrix audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.FractalCosmos && (
-          <FractalCosmos audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.ParticleGalaxy && (
+          <ParticleGalaxy audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.AuroraWeave && (
-          <AuroraWeave audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.CrystalLattice && (
+          <CrystalLattice audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.HyperTunnel && (
-          <HyperTunnel audioData={audioData} isPlaying={isPlaying} />
-        )}
-        {mode === VisualizerMode.QuantumLattice && (
-          <QuantumLattice audioData={audioData} isPlaying={isPlaying} />
-        )}
-        {mode === VisualizerMode.IonSpire && (
-          <IonSpire audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.PlasmaWave && (
+          <PlasmaWave audioData={audioData} isPlaying={isPlaying} />
         )}
       </>
     );

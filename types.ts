@@ -2,18 +2,10 @@ export enum VisualizerMode {
   Spectrogram = 'Spectrogram',
   Circular = 'Circular',
   Waveform = 'Waveform',
-  Kaleidoscope = 'Kaleidoscope',
-  PulseTunnel = 'PulseTunnel',
-  TidalBloom = 'TidalBloom',
-  VoxelOctopus = 'VoxelOctopus',
-  // New WebGL modes
-  NebulaStorm = 'NebulaStorm',
   WireframeMatrix = 'WireframeMatrix',
-  FractalCosmos = 'FractalCosmos',
-  AuroraWeave = 'AuroraWeave',
-  HyperTunnel = 'HyperTunnel',
-  QuantumLattice = 'QuantumLattice',
-  IonSpire = 'IonSpire'
+  ParticleGalaxy = 'ParticleGalaxy',
+  CrystalLattice = 'CrystalLattice',
+  PlasmaWave = 'PlasmaWave'
 }
 
 export interface Track {
