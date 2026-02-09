@@ -4,10 +4,10 @@ export const FFT_SIZE = 2048; // High resolution
 export const SMOOTHING_TIME_CONSTANT = 0.85;
 
 export const MODES = [
-  { id: VisualizerMode.Spectrogram, label: 'Neon Bars' },
-  { id: VisualizerMode.Circular, label: 'Solar Vortex' },
-  { id: VisualizerMode.Waveform, label: 'Oscilloscope' },
-  { id: VisualizerMode.WireframeMatrix, label: 'Cyber Grid' },
+  { id: VisualizerMode.Spectrogram, label: 'Prismatic Bars' },
+  { id: VisualizerMode.Circular, label: 'Solar Orbit' },
+  { id: VisualizerMode.Waveform, label: 'Signal Trace' },
+  { id: VisualizerMode.WireframeMatrix, label: 'Neon Grid' },
   { id: VisualizerMode.AetherRings, label: 'Aether Rings' },
   { id: VisualizerMode.PrismShardField, label: 'Prism Shards' },
   { id: VisualizerMode.FluxBloom, label: 'Flux Bloom' },

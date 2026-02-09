@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AudioEngine } from './services/AudioEngine';
 import VisualizerCanvas from './components/VisualizerCanvas';
-import Controls from './components/Controls';
-import Playlist from './components/Playlist';
+import ControlDock from './components/ControlDock';
+import LibraryPanel from './components/LibraryPanel';
 import { Track, VisualizerMode } from './types';
 
 const App: React.FC = () => {
@@ -13,7 +13,7 @@ const App: React.FC = () => {
   const [mode, setMode] = useState<VisualizerMode>(VisualizerMode.Spectrogram);
   const [isMicActive, setIsMicActive] = useState(false);
   const [volume, setVolume] = useState(0.8);
-  const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(true);
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // Ref to the actual HTML Audio Element
@@ -58,9 +58,9 @@ const App: React.FC = () => {
         }
         return [...prev, ...newTracks];
       });
-      
-      // Open playlist sidebar on first upload
-      if (playlist.length === 0) setIsPlaylistOpen(true);
+
+      // Open library panel on first upload
+      if (playlist.length === 0) setIsLibraryOpen(true);
     }
   };
 
@@ -150,64 +150,74 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans select-none">
-      
-      {/* Background / Canvas */}
-      <VisualizerCanvas 
-        audioEngine={audioEngine} 
-        mode={mode} 
+    <div className="relative min-h-screen overflow-hidden bg-[#04040a] text-white font-sans">
+      <VisualizerCanvas
+        audioEngine={audioEngine}
+        mode={mode}
         isPlaying={isPlaying}
       />
 
-      {/* Overlay Gradient for readability */}
-      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80" />
 
-      {/* Branding / Start Prompt */}
+      <header className="absolute top-0 left-0 right-0 z-30 px-6 pt-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.45em] text-white/40">ALGORYTHM</p>
+            <h1 className="text-3xl font-semibold text-white">Audio Visual Studio</h1>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/60">
+              FFT {FFT_SIZE}
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/60">
+              {isMicActive ? 'Mic Input' : 'File Playback'}
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/60">
+              {mode}
+            </span>
+          </div>
+        </div>
+      </header>
+
       {!hasInteracted && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-50 backdrop-blur-sm">
-          <div className="text-center animate-pulse">
-             <h1 className="text-6xl font-black tracking-tighter mb-4 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-600">
-               ALGORYTHM
-             </h1>
-             <button 
-               onClick={() => { setHasInteracted(true); setIsPlaylistOpen(true); }}
-               className="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition"
-             >
-               START EXPERIENCE
-             </button>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="max-w-lg text-center">
+            <p className="text-xs uppercase tracking-[0.45em] text-white/40">Initialize session</p>
+            <h2 className="mt-4 text-5xl font-semibold text-white">
+              Build a new audio reality.
+            </h2>
+            <p className="mt-4 text-base text-white/70">
+              Upload audio, tap the mic, and explore the next generation of real-time visuals.
+            </p>
+            <button
+              onClick={() => { setHasInteracted(true); setIsLibraryOpen(true); }}
+              className="mt-8 rounded-full bg-white px-8 py-3 text-sm font-semibold text-black transition hover:scale-105"
+            >
+              Enter Studio
+            </button>
           </div>
         </div>
       )}
 
-      {/* Playlist Sidebar */}
-      <Playlist 
+      <LibraryPanel
         playlist={playlist}
         currentIndex={currentTrackIndex}
         onSelect={(idx) => playTrack(idx)}
         onRemove={removeTrack}
-        isOpen={isPlaylistOpen}
-        setIsOpen={setIsPlaylistOpen}
+        onFileUpload={handleFileUpload}
+        onMicEnable={handleMicEnable}
+        isMicActive={isMicActive}
+        isOpen={isLibraryOpen}
+        setIsOpen={setIsLibraryOpen}
       />
 
-      {/* Track Title (Floating) */}
-      {!isMicActive && currentTrackIndex !== -1 && (
-        <div className="absolute top-8 left-8 z-10 max-w-md">
-            <h1 className="text-4xl font-bold text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] line-clamp-2">
-                {playlist[currentTrackIndex].name}
-            </h1>
-        </div>
-      )}
-
-      {/* Main Controls */}
-      <Controls 
+      <ControlDock
         isPlaying={isPlaying}
         onPlayPause={togglePlayPause}
         onNext={handleNext}
         onPrev={handlePrev}
         currentMode={mode}
         onModeChange={setMode}
-        onMicEnable={handleMicEnable}
-        onFileUpload={handleFileUpload}
         volume={volume}
         onVolumeChange={setVolume}
         currentTrackName={currentTrackIndex > -1 ? playlist[currentTrackIndex].name : undefined}

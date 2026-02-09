@@ -1,6 +1,6 @@
 {
   "name": "Algorythm",
-  "description": "A high-performance, state-of-the-art music visualizer featuring multiple physics-based rendering modes, microphone input, and playlist management.",
+  "description": "ALGORYTHM Audio Visual Studio: a next-generation visualizer with immersive modes, microphone input, and curated playback control.",
   "requestFramePermissions": [
     "microphone"
   ]
