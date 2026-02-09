@@ -167,7 +167,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/60">
-              FFT 2048
+              FFT {FFT_SIZE}
             </span>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/60">
               {isMicActive ? 'Mic Input' : 'File Playback'}
