@@ -4,8 +4,9 @@ export enum VisualizerMode {
   Waveform = 'Waveform',
   WireframeMatrix = 'WireframeMatrix',
   AetherRings = 'AetherRings',
-  PrismShardField = 'PrismShardField',
-  FluxBloom = 'FluxBloom'
+  BassReactor = 'BassReactor',
+  GlitchHelix = 'GlitchHelix',
+  VoidFracture = 'VoidFracture'
 }
 
 export interface Track {

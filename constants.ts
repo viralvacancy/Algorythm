@@ -9,8 +9,9 @@ export const MODES = [
   { id: VisualizerMode.Waveform, label: 'Signal Trace' },
   { id: VisualizerMode.WireframeMatrix, label: 'Neon Grid' },
   { id: VisualizerMode.AetherRings, label: 'Aether Rings' },
-  { id: VisualizerMode.PrismShardField, label: 'Prism Shards' },
-  { id: VisualizerMode.FluxBloom, label: 'Flux Bloom' },
+  { id: VisualizerMode.BassReactor, label: 'Bass Reactor' },
+  { id: VisualizerMode.GlitchHelix, label: 'Glitch Helix' },
+  { id: VisualizerMode.VoidFracture, label: 'Void Fracture' },
 ];
 
 export const COLOR_PALETTES = {

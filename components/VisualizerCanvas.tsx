@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { AudioEngine } from '../services/AudioEngine';
 import { VisualizerMode, AudioData } from '../types';
-import { WireframeMatrix, AetherRings, PrismShardField, FluxBloom } from './WebGLVisualizers';
+import { WireframeMatrix, AetherRings, BassReactor, GlitchHelix, VoidFracture } from './WebGLVisualizers';
 
 interface Props {
   audioEngine: AudioEngine;
@@ -43,8 +43,9 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
   const isWebGLMode = [
     VisualizerMode.WireframeMatrix,
     VisualizerMode.AetherRings,
-    VisualizerMode.PrismShardField,
-    VisualizerMode.FluxBloom
+    VisualizerMode.BassReactor,
+    VisualizerMode.GlitchHelix,
+    VisualizerMode.VoidFracture
   ].includes(mode);
 
   // Cleanup state on mode change
@@ -984,11 +985,14 @@ const VisualizerCanvas: React.FC<Props> = ({ audioEngine, mode, isPlaying }) => 
         {mode === VisualizerMode.AetherRings && (
           <AetherRings audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.PrismShardField && (
-          <PrismShardField audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.BassReactor && (
+          <BassReactor audioData={audioData} isPlaying={isPlaying} />
         )}
-        {mode === VisualizerMode.FluxBloom && (
-          <FluxBloom audioData={audioData} isPlaying={isPlaying} />
+        {mode === VisualizerMode.GlitchHelix && (
+          <GlitchHelix audioData={audioData} isPlaying={isPlaying} />
+        )}
+        {mode === VisualizerMode.VoidFracture && (
+          <VoidFracture audioData={audioData} isPlaying={isPlaying} />
         )}
       </>
     );
