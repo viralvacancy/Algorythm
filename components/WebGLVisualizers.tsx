@@ -550,43 +550,35 @@ export const AetherRings: React.FC<AetherRingsProps> = ({ audioData, isPlaying }
 };
 
 // ============================================================================
-// PRISM SHARD FIELD - Instanced crystalline shards with reactive lighting
+// BASS REACTOR - Monolithic speaker towers and shockwave pulses
 // ============================================================================
 
-interface PrismShardFieldProps {
+interface BassReactorProps {
   audioData: AudioData;
   isPlaying: boolean;
 }
 
-interface ShardData {
-  position: THREE.Vector3;
-  spin: THREE.Vector3;
-  phase: number;
-  index: number;
-}
-
-export const PrismShardField: React.FC<PrismShardFieldProps> = ({ audioData, isPlaying }) => {
+export const BassReactor: React.FC<BassReactorProps> = ({ audioData, isPlaying }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const shardsRef = useRef<THREE.InstancedMesh | null>(null);
-  const shardDataRef = useRef<ShardData[]>([]);
-  const dummyRef = useRef(new THREE.Object3D());
+  const towersRef = useRef<THREE.InstancedMesh | null>(null);
+  const pulseRingRef = useRef<THREE.Mesh | null>(null);
   const timeRef = useRef(0);
   const frameRef = useRef<number | null>(null);
-  const lightRef = useRef<THREE.PointLight | null>(null);
+  const dummyRef = useRef(new THREE.Object3D());
 
   const init = useCallback(() => {
     if (!containerRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x03040a);
-    scene.fog = new THREE.Fog(0x03040a, 25, 120);
+    scene.background = new THREE.Color(0x020206);
+    scene.fog = new THREE.Fog(0x020206, 25, 140);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 8, 40);
+    const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 240);
+    camera.position.set(0, 18, 48);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -595,107 +587,249 @@ export const PrismShardField: React.FC<PrismShardFieldProps> = ({ audioData, isP
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const geometry = new THREE.IcosahedronGeometry(0.9, 0);
+    const towerCount = 96;
+    const geometry = new THREE.BoxGeometry(1.2, 1, 1.2);
     const material = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 0.25,
-      roughness: 0.35,
+      color: 0x66ccff,
+      emissive: new THREE.Color(0x111a44),
+      emissiveIntensity: 0.6,
+      metalness: 0.45,
+      roughness: 0.25,
       transparent: true,
-      opacity: 0.85,
-      emissive: new THREE.Color(0x111133),
-      vertexColors: true,
+      opacity: 0.9,
     });
 
-    const shardCount = 620;
-    const instanced = new THREE.InstancedMesh(geometry, material, shardCount);
+    const towers = new THREE.InstancedMesh(geometry, material, towerCount);
     const color = new THREE.Color();
-    shardDataRef.current = [];
+    for (let i = 0; i < towerCount; i += 1) {
+      const lane = i % 24;
+      const row = Math.floor(i / 24);
+      const x = (lane - 11.5) * 1.9;
+      const z = row * -8 - 10;
+      const hue = 0.52 + (lane / 24) * 0.2;
+      color.setHSL(hue % 1, 0.95, 0.58);
+      towers.setColorAt(i, color);
 
-    for (let i = 0; i < shardCount; i += 1) {
-      const radius = 8 + Math.random() * 30;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const position = new THREE.Vector3(
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta)
-      );
-      const spin = new THREE.Vector3(
-        Math.random() * 0.6 + 0.2,
-        Math.random() * 0.6 + 0.2,
-        Math.random() * 0.6 + 0.2
-      );
-      const phase = Math.random() * Math.PI * 2;
-      const index = Math.floor((i / shardCount) * 255);
-
-      shardDataRef.current.push({ position, spin, phase, index });
-      const hue = (0.55 + radius / 80 + i / shardCount) % 1;
-      color.setHSL(hue, 0.85, 0.6);
-      instanced.setColorAt(i, color);
+      dummyRef.current.position.set(x, 0.5, z);
+      dummyRef.current.scale.set(1, 1, 1);
+      dummyRef.current.updateMatrix();
+      towers.setMatrixAt(i, dummyRef.current.matrix);
     }
 
-    instanced.instanceMatrix.needsUpdate = true;
-    if (instanced.instanceColor) {
-      instanced.instanceColor.needsUpdate = true;
-    }
-    scene.add(instanced);
-    shardsRef.current = instanced;
+    towers.instanceMatrix.needsUpdate = true;
+    if (towers.instanceColor) towers.instanceColor.needsUpdate = true;
+    scene.add(towers);
+    towersRef.current = towers;
 
-    scene.add(new THREE.AmbientLight(0x223355, 0.6));
-    const pointLight = new THREE.PointLight(0x99ccff, 1.2, 150);
-    pointLight.position.set(0, 10, 20);
-    scene.add(pointLight);
-    lightRef.current = pointLight;
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(6, 7, 96),
+      new THREE.MeshBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.1;
+    scene.add(ring);
+    pulseRingRef.current = ring;
 
-    const rimLight = new THREE.PointLight(0xff66ff, 0.7, 120);
-    rimLight.position.set(-20, -10, -20);
-    scene.add(rimLight);
+    scene.add(new THREE.AmbientLight(0x334466, 0.45));
+    const kickLight = new THREE.PointLight(0x66ccff, 1.5, 120);
+    kickLight.position.set(0, 18, 8);
+    scene.add(kickLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(120, 120),
+      new THREE.MeshStandardMaterial({ color: 0x070b12, metalness: 0.2, roughness: 0.8 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.1;
+    scene.add(floor);
   }, []);
 
   const animate = useCallback(() => {
-    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !shardsRef.current) return;
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !towersRef.current) return;
 
     timeRef.current += 0.016;
-    const time = timeRef.current;
-
+    const t = timeRef.current;
     const bass = audioData.bass / 255;
     const mid = audioData.mid / 255;
     const treble = audioData.treble / 255;
-    const dummy = dummyRef.current;
+    const freq = audioData.frequencyData;
 
-    shardDataRef.current.forEach((shard, i) => {
-      const sample = audioData.frequencyData[shard.index] ?? 0;
-      const audioBoost = sample / 255;
-      const pulse = 0.7 + audioBoost * 1.4 + bass * 0.4;
-      const drift = Math.sin(time * 0.6 + shard.phase) * 1.2 * mid;
+    for (let i = 0; i < towersRef.current.count; i += 1) {
+      const sample = (freq[(i * 3) % Math.max(1, freq.length)] ?? 0) / 255;
+      const h = 0.5 + sample * 14 + bass * 8;
+      const x = ((i % 24) - 11.5) * 1.9;
+      const z = Math.floor(i / 24) * -8 - 10;
 
-      dummy.position.set(
-        shard.position.x + drift,
-        shard.position.y + Math.cos(time * 0.5 + shard.phase) * 0.8 * treble,
-        shard.position.z
-      );
-      dummy.scale.set(pulse, pulse * (1 + mid * 0.2), pulse);
-      dummy.rotation.set(
-        time * shard.spin.x + shard.phase,
-        time * shard.spin.y + shard.phase,
-        time * shard.spin.z
-      );
-      dummy.updateMatrix();
-      shardsRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-
-    shardsRef.current.instanceMatrix.needsUpdate = true;
-    const material = shardsRef.current.material as THREE.MeshStandardMaterial;
-    material.emissiveIntensity = 0.3 + treble * 0.8;
-
-    if (lightRef.current) {
-      lightRef.current.intensity = 0.8 + bass * 1.2;
-      lightRef.current.position.x = Math.sin(time * 0.4) * 15;
-      lightRef.current.position.z = Math.cos(time * 0.5) * 20;
+      dummyRef.current.position.set(x, h * 0.5, z);
+      dummyRef.current.scale.set(1, h, 1 + sample * 0.2);
+      dummyRef.current.rotation.y = Math.sin(t * 0.6 + i * 0.2) * 0.08;
+      dummyRef.current.updateMatrix();
+      towersRef.current.setMatrixAt(i, dummyRef.current.matrix);
     }
 
-    cameraRef.current.position.x = Math.sin(time * 0.2) * 14;
-    cameraRef.current.position.z = 40 + Math.cos(time * 0.15) * 6;
+    towersRef.current.instanceMatrix.needsUpdate = true;
+    const towerMaterial = towersRef.current.material as THREE.MeshStandardMaterial;
+    towerMaterial.emissiveIntensity = 0.55 + treble * 1.2;
+
+    if (pulseRingRef.current) {
+      const ringPulse = 1 + bass * 2.2;
+      pulseRingRef.current.scale.set(ringPulse, ringPulse, 1);
+      (pulseRingRef.current.material as THREE.MeshBasicMaterial).opacity = 0.25 + bass * 0.6;
+      pulseRingRef.current.rotation.z += 0.01 + mid * 0.03;
+    }
+
+    cameraRef.current.position.x = Math.sin(t * 0.24) * (4 + mid * 4);
+    cameraRef.current.position.y = 15 + bass * 10;
+    cameraRef.current.lookAt(0, 6, -18);
+
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    frameRef.current = requestAnimationFrame(animate);
+  }, [audioData]);
+
+  useEffect(() => {
+    init();
+
+    const handleResize = () => {
+      if (!cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (rendererRef.current && containerRef.current) {
+        const canvas = rendererRef.current.domElement;
+        if (canvas.parentElement === containerRef.current) containerRef.current.removeChild(canvas);
+        rendererRef.current.dispose();
+      }
+    };
+  }, [init]);
+
+  useEffect(() => {
+    if (isPlaying) frameRef.current = requestAnimationFrame(animate);
+    else if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [isPlaying, animate]);
+
+  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+};
+
+// ============================================================================
+// GLITCH HELIX - DNA-like double helix particle strands with beat warping
+// ============================================================================
+
+interface GlitchHelixProps {
+  audioData: AudioData;
+  isPlaying: boolean;
+}
+
+export const GlitchHelix: React.FC<GlitchHelixProps> = ({ audioData, isPlaying }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const strandsRef = useRef<THREE.Points | null>(null);
+  const positionsRef = useRef<Float32Array>(new Float32Array(0));
+  const timeRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+
+  const init = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x03010a);
+    scene.fog = new THREE.Fog(0x03010a, 12, 90);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 0, 28);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const points = 2400;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(points * 3);
+    const colors = new Float32Array(points * 3);
+    positionsRef.current = positions;
+    const c = new THREE.Color();
+
+    for (let i = 0; i < points; i += 1) {
+      const lane = i % 2;
+      const t = i / points;
+      const y = (t - 0.5) * 70;
+      const angle = t * Math.PI * 22 + lane * Math.PI;
+      positions[i * 3] = Math.cos(angle) * 5;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = Math.sin(angle) * 5;
+
+      c.setHSL((0.58 + lane * 0.25 + t * 0.1) % 1, 1, 0.62);
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({
+      size: 0.22,
+      transparent: true,
+      opacity: 0.95,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+
+    const strands = new THREE.Points(geometry, material);
+    scene.add(strands);
+    strandsRef.current = strands;
+
+    scene.add(new THREE.AmbientLight(0x331a55, 0.5));
+  }, []);
+
+  const animate = useCallback(() => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !strandsRef.current) return;
+
+    timeRef.current += 0.016;
+    const t = timeRef.current;
+    const bass = audioData.bass / 255;
+    const mid = audioData.mid / 255;
+    const treble = audioData.treble / 255;
+    const pos = positionsRef.current;
+    const freq = audioData.frequencyData;
+
+    for (let i = 0; i < pos.length / 3; i += 1) {
+      const lane = i % 2;
+      const idx = i * 3;
+      const progress = i / (pos.length / 3);
+      const y = (progress - 0.5) * 70;
+      const sample = (freq[(i * 2) % Math.max(1, freq.length)] ?? 0) / 255;
+      const twist = t * (2.2 + treble * 2.8) + progress * Math.PI * (18 + mid * 10) + lane * Math.PI;
+      const radius = 4 + sample * 7 + bass * 3;
+      pos[idx] = Math.cos(twist) * radius;
+      pos[idx + 1] = y + Math.sin(t * 4 + progress * 30) * bass * 2.5;
+      pos[idx + 2] = Math.sin(twist) * radius;
+    }
+
+    const attribute = strandsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
+    attribute.needsUpdate = true;
+
+    const material = strandsRef.current.material as THREE.PointsMaterial;
+    material.size = 0.18 + treble * 0.45;
+    material.opacity = 0.65 + mid * 0.35;
+
+    cameraRef.current.position.x = Math.sin(t * 0.32) * 10;
+    cameraRef.current.position.z = 28 + Math.cos(t * 0.2) * 5;
     cameraRef.current.lookAt(0, 0, 0);
 
     rendererRef.current.render(sceneRef.current, cameraRef.current);
@@ -713,30 +847,20 @@ export const PrismShardField: React.FC<PrismShardFieldProps> = ({ audioData, isP
     };
 
     window.addEventListener('resize', handleResize);
-
     return () => {
       window.removeEventListener('resize', handleResize);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (rendererRef.current && containerRef.current) {
         const canvas = rendererRef.current.domElement;
-        if (canvas.parentElement === containerRef.current) {
-          containerRef.current.removeChild(canvas);
-        }
+        if (canvas.parentElement === containerRef.current) containerRef.current.removeChild(canvas);
         rendererRef.current.dispose();
-      }
-      if (shardsRef.current) {
-        shardsRef.current.geometry.dispose();
-        (shardsRef.current.material as THREE.Material).dispose();
       }
     };
   }, [init]);
 
   useEffect(() => {
-    if (isPlaying) {
-      frameRef.current = requestAnimationFrame(animate);
-    } else if (frameRef.current) {
-      cancelAnimationFrame(frameRef.current);
-    }
+    if (isPlaying) frameRef.current = requestAnimationFrame(animate);
+    else if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
@@ -747,15 +871,15 @@ export const PrismShardField: React.FC<PrismShardFieldProps> = ({ audioData, isP
 };
 
 // ============================================================================
-// FLUX BLOOM - Fullscreen shader with pulsing energy fields
+// VOID FRACTURE - Fullscreen shader storm with aggressive audio modulation
 // ============================================================================
 
-interface FluxBloomProps {
+interface VoidFractureProps {
   audioData: AudioData;
   isPlaying: boolean;
 }
 
-export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) => {
+export const VoidFracture: React.FC<VoidFractureProps> = ({ audioData, isPlaying }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -766,7 +890,6 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
 
   const fragmentShader = `
     precision highp float;
-
     uniform float uTime;
     uniform vec2 uResolution;
     uniform float uBass;
@@ -774,47 +897,53 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
     uniform float uTreble;
     uniform float uRms;
 
-    vec3 palette(float t, vec3 shift) {
-      return 0.55 + 0.45 * cos(6.28318 * (vec3(0.2, 0.35, 0.55) * t + shift));
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
     }
 
-    float blob(vec2 uv, vec2 center, float radius) {
-      float d = length(uv - center);
-      return radius / (d + 0.15);
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+        u.y
+      );
     }
 
     void main() {
       vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution.xy) / min(uResolution.x, uResolution.y);
-      float t = uTime * 0.35;
+      float t = uTime * (0.35 + uTreble * 0.3);
+      float radial = length(uv);
+      float angle = atan(uv.y, uv.x);
 
-      vec2 c1 = vec2(sin(t * 0.9), cos(t * 0.7)) * (0.55 + uBass * 0.25);
-      vec2 c2 = vec2(cos(t * 0.6 + 1.2), sin(t * 0.8 + 2.1)) * (0.7 + uMid * 0.3);
-      vec2 c3 = vec2(sin(t * 1.1 + 2.4), cos(t * 0.5 + 1.5)) * (0.6 + uTreble * 0.35);
+      float warp = sin(angle * (10.0 + uMid * 18.0) - t * 6.0) * (0.15 + uBass * 0.22);
+      vec2 p = uv * (3.0 + uBass * 4.0) + vec2(cos(t), sin(t * 1.3)) * 1.4 + warp;
 
-      float field = 0.0;
-      field += blob(uv, c1, 0.55 + uBass * 0.2);
-      field += blob(uv, c2, 0.5 + uMid * 0.2);
-      field += blob(uv, c3, 0.45 + uTreble * 0.2);
+      float n = 0.0;
+      float amp = 0.6;
+      for (int i = 0; i < 5; i++) {
+        n += noise(p) * amp;
+        p *= 1.9;
+        amp *= 0.55;
+      }
 
-      float ripple = sin((uv.x + uv.y) * 6.0 - t * 4.0) * 0.08;
-      field += ripple;
+      float cracks = smoothstep(0.62 - uBass * 0.2, 0.92, sin(n * 16.0 + angle * 8.0 - t * 4.0));
+      float core = smoothstep(0.65 + uBass * 0.2, 0.0, radial);
+      vec3 c1 = vec3(0.08, 0.0, 0.2);
+      vec3 c2 = vec3(0.0, 0.95, 1.0);
+      vec3 c3 = vec3(1.0, 0.12, 0.65);
 
-      float glow = smoothstep(1.0, 2.4, field);
-      vec3 color = palette(field * 0.35, vec3(0.12 + uBass * 0.2, 0.32 + uMid * 0.2, 0.6 + uTreble * 0.2));
-      color = mix(color, vec3(0.05, 0.02, 0.08), smoothstep(0.0, 0.5, length(uv)));
-      color += glow * vec3(0.3, 0.45, 0.9) * (0.6 + uTreble);
-      color *= 0.7 + uRms * 0.6;
+      vec3 color = mix(c1, c2, n);
+      color = mix(color, c3, cracks * (0.55 + uTreble));
+      color += core * vec3(0.35 + uBass, 0.2 + uMid * 0.6, 0.7 + uTreble);
+      color *= 0.55 + uRms * 0.95;
 
-      float vignette = smoothstep(1.2, 0.2, length(uv));
+      float vignette = smoothstep(1.15, 0.25, radial);
       color *= vignette;
 
       gl_FragColor = vec4(color, 1.0);
-    }
-  `;
-
-  const vertexShader = `
-    void main() {
-      gl_Position = vec4(position, 1.0);
     }
   `;
 
@@ -823,9 +952,7 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    cameraRef.current = camera;
+    cameraRef.current = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -833,7 +960,6 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const geometry = new THREE.PlaneGeometry(2, 2);
     const material = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -843,18 +969,17 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
         uTreble: { value: 0 },
         uRms: { value: 0 },
       },
-      vertexShader,
+      vertexShader: 'void main(){ gl_Position = vec4(position, 1.0); }',
       fragmentShader,
     });
 
-    const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
     scene.add(mesh);
     meshRef.current = mesh;
-  }, []);
+  }, [fragmentShader]);
 
   const animate = useCallback(() => {
     if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !meshRef.current) return;
-
     timeRef.current += 0.016;
 
     const material = meshRef.current.material as THREE.ShaderMaterial;
@@ -879,26 +1004,20 @@ export const FluxBloom: React.FC<FluxBloomProps> = ({ audioData, isPlaying }) =>
     };
 
     window.addEventListener('resize', handleResize);
-
     return () => {
       window.removeEventListener('resize', handleResize);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (rendererRef.current && containerRef.current) {
         const canvas = rendererRef.current.domElement;
-        if (canvas.parentElement === containerRef.current) {
-          containerRef.current.removeChild(canvas);
-        }
+        if (canvas.parentElement === containerRef.current) containerRef.current.removeChild(canvas);
         rendererRef.current.dispose();
       }
     };
   }, [init]);
 
   useEffect(() => {
-    if (isPlaying) {
-      frameRef.current = requestAnimationFrame(animate);
-    } else if (frameRef.current) {
-      cancelAnimationFrame(frameRef.current);
-    }
+    if (isPlaying) frameRef.current = requestAnimationFrame(animate);
+    else if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
